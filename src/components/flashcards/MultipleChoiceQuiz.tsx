@@ -370,76 +370,95 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const progress = ((currentCardIndex + 1) / quizCards.length) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
-      <Card>
-        <CardHeader>
+    <div className="max-w-4xl mx-auto animate-fade-in space-y-6">
+      <Card className="rounded-2xl border shadow-sm">
+        <CardHeader className="space-y-4">
           <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold text-indigo-800">
+              <Clock className="h-5 w-5 text-indigo-700" />
               Quiz Mode
             </CardTitle>
-            <div className={`text-lg font-mono ${timeLeft < 60 ? 'text-red-500' : ''}`}>
+            <div
+              className={`text-lg font-mono ${
+                timeLeft < 60 ? "text-red-500" : "text-muted-foreground"
+              }`}
+            >
               {formatTime(timeLeft)}
             </div>
           </div>
-          
-          <ScoreMeter 
+
+          <ScoreMeter
             currentStreak={currentStreak}
             currentRank={currentRank}
             multiplier={currentMultiplier}
             totalScore={totalScore}
             showRankUp={showRankUp}
           />
-          
-          <Progress value={progress} className="w-full" />
-          <div className="text-sm text-muted-foreground">
-            Question {currentCardIndex + 1} of {quizCards.length}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <h3 className="font-semibold mb-4 text-lg">Question:</h3>
-            <div className="bg-gray-50 p-4 rounded-lg border min-h-[100px]">
-              <div className="text-base leading-relaxed whitespace-pre-wrap">
-                {currentCard?.question}
-              </div>
+
+          <div className="flex flex-col gap-2">
+            <Progress value={progress} className="w-full" />
+            <div className="text-sm text-muted-foreground">
+              Question {currentCardIndex + 1} of {quizCards.length}
             </div>
           </div>
-          
-          <div>
-            <h3 className="font-semibold mb-4 text-lg">Choose your answer:</h3>
-            <RadioGroup value={selectedOption} onValueChange={handleOptionSelect} disabled={isAnswered}>
+        </CardHeader>
+
+        <CardContent className="space-y-8">
+          {/* Question Prompt */}
+          <section>
+            <h3 className="font-semibold text-lg mb-3">Question</h3>
+            <div className="bg-muted/50 p-5 rounded-xl border min-h-[100px] text-base whitespace-pre-wrap leading-relaxed">
+              {currentCard?.question}
+            </div>
+          </section>
+
+          {/* Answer Options */}
+          <section>
+            <h3 className="font-semibold text-lg mb-3">Choose your answer</h3>
+            <RadioGroup
+              value={selectedOption}
+              onValueChange={handleOptionSelect}
+              disabled={isAnswered}
+            >
               <div className="space-y-3">
                 {currentCard?.options.map((option, index) => {
                   const isSelected = selectedOption === index.toString();
                   const isCorrect = index === currentCard.correct_answer_index;
-                  let optionClass = "p-4 rounded-lg border transition-all";
-                  
+                  const isIncorrect = isSelected && !isCorrect;
+
+                  let baseStyle =
+                    "p-4 rounded-lg border transition-all cursor-pointer";
+                  let styleVariant = "";
+
                   if (showAnswer) {
                     if (isCorrect) {
-                      optionClass += " bg-green-100 border-green-500 text-green-800";
-                    } else if (isSelected && !isCorrect) {
-                      optionClass += " bg-red-100 border-red-500 text-red-800";
+                      styleVariant =
+                        "bg-green-100 border-green-500 text-green-800";
+                    } else if (isIncorrect) {
+                      styleVariant = "bg-red-100 border-red-500 text-red-800";
                     } else {
-                      optionClass += " bg-gray-50 border-gray-300 text-gray-600";
+                      styleVariant = "bg-gray-50 border-gray-300 text-gray-600";
                     }
                   } else if (isSelected) {
-                    optionClass += " bg-blue-100 border-blue-500";
+                    styleVariant = "bg-blue-100 border-blue-500";
                   } else {
-                    optionClass += " hover:bg-gray-50 border-gray-300";
+                    styleVariant = "hover:bg-gray-50 border-gray-300";
                   }
-                  
+
                   return (
-                    <div key={index} className={optionClass}>
-                      <div className="flex items-center space-x-3">
-                        <RadioGroupItem value={index.toString()} id={`option-${index}`} />
-                        <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
+                    <div key={index} className={`${baseStyle} ${styleVariant}`}>
+                      <div className="flex items-center gap-3">
+                        <RadioGroupItem
+                          value={index.toString()}
+                          id={`option-${index}`}
+                        />
+                        <Label htmlFor={`option-${index}`} className="flex-1">
                           {option}
                         </Label>
                         {showAnswer && isCorrect && (
                           <CheckCircle className="h-5 w-5 text-green-600" />
                         )}
-                        {showAnswer && isSelected && !isCorrect && (
+                        {showAnswer && isIncorrect && (
                           <XCircle className="h-5 w-5 text-red-600" />
                         )}
                       </div>
@@ -448,31 +467,40 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
                 })}
               </div>
             </RadioGroup>
-          </div>
-          
+          </section>
+
+          {/* Answer Feedback */}
           {showAnswer && (
-            <div className="text-center">
+            <div className="text-center space-y-2">
               {isAnswered && selectedOption && (
-                <div className="mb-2">
-                  {currentCard && parseInt(selectedOption) === currentCard.correct_answer_index ? (
-                    <div className="text-green-600 font-medium">
-                      +{BASE_POINTS * currentMultiplier} points! {currentMultiplier > 1 && `(${BASE_POINTS} × ${currentMultiplier}x)`}
-                    </div>
+                <div>
+                  {parseInt(selectedOption) ===
+                  currentCard.correct_answer_index ? (
+                    <p className="text-green-600 font-medium">
+                      +{BASE_POINTS * currentMultiplier} points!
+                      {currentMultiplier > 1 && (
+                        <>
+                          {" "}
+                          ({BASE_POINTS} × {currentMultiplier}x)
+                        </>
+                      )}
+                    </p>
                   ) : (
-                    <div className="text-red-600 font-medium">
+                    <p className="text-red-600 font-medium">
                       Streak broken! Rank dropped.
-                    </div>
+                    </p>
                   )}
                 </div>
               )}
-              <div className="text-sm text-muted-foreground">
-                {currentCardIndex < quizCards.length - 1 
-                  ? "Next question in a moment..." 
+              <p className="text-sm text-muted-foreground">
+                {currentCardIndex < quizCards.length - 1
+                  ? "Next question in a moment..."
                   : "Finishing quiz..."}
-              </div>
+              </p>
             </div>
           )}
-          
+
+          {/* Loading Spinner */}
           {isSubmitting && (
             <div className="flex justify-center">
               <LoadingSpinner size="sm" />
