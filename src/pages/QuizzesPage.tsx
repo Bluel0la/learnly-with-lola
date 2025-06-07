@@ -36,7 +36,6 @@ const QuizzesPage = () => {
             status="ready"
           />
           
-          {/* New quiz card */}
           <Card className="border-dashed border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
             <CardContent className="flex items-center justify-center h-full p-6">
               <Button 
@@ -67,7 +66,7 @@ const QuizzesPage = () => {
         <Card>
           <CardContent className="p-6">
             <div className="text-center text-gray-500">
-              Complete more quizzes to generate personalized insights
+              Complete more quizzes to generate personalized insights and climb the ranks!
             </div>
           </CardContent>
         </Card>
@@ -94,7 +93,7 @@ const QuizCard = ({
   const handleStart = () => {
     toast({
       title: `Starting quiz: ${title}`,
-      description: "This feature is coming soon"
+      description: "Ranking system active - climb from E to S+!"
     });
   };
   

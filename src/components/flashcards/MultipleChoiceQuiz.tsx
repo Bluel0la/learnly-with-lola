@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Clock, CheckCircle, XCircle, Trophy, ArrowLeft, BookOpen, Zap, Star } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Trophy, ArrowLeft, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { QuizCard, QuizResponse, QuizResult, flashcardApi } from '@/services/flashcardApi';
 import LoadingSpinner from '@/components/ui/loading-spinner';
 import QuizReview from './QuizReview';
+import ScoreMeter from './ScoreMeter';
 
 interface MultipleChoiceQuizProps {
   deckId: string;
@@ -31,17 +32,27 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const [isAnswered, setIsAnswered] = useState(false);
   const [showReview, setShowReview] = useState(false);
   
-  // Multiplier system state
+  // Score meter system state
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [currentRank, setCurrentRank] = useState('E');
   const [currentMultiplier, setCurrentMultiplier] = useState(1);
   const [totalScore, setTotalScore] = useState(0);
-  const [maxMultiplier, setMaxMultiplier] = useState(1);
-  const [showMultiplierBonus, setShowMultiplierBonus] = useState(false);
+  const [showRankUp, setShowRankUp] = useState(false);
 
   const BASE_POINTS = 100;
 
+  const calculateRank = (streak: number): string => {
+    if (streak >= 12) return 'S+';
+    if (streak >= 10) return 'S';
+    if (streak >= 8) return 'A';
+    if (streak >= 6) return 'B';
+    if (streak >= 4) return 'C';
+    if (streak >= 2) return 'D';
+    return 'E';
+  };
+
   const calculateMultiplier = (streak: number): number => {
-    return Math.min(streak + 1, 10); // Cap at 10x multiplier
+    return Math.min(Math.floor(streak / 2) + 1, 6); // Max 6x multiplier
   };
 
   const startQuiz = async () => {
@@ -70,12 +81,12 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
       setShowAnswer(false);
       setIsAnswered(false);
       
-      // Reset multiplier system
+      // Reset score meter system
       setCurrentStreak(0);
+      setCurrentRank('E');
       setCurrentMultiplier(1);
       setTotalScore(0);
-      setMaxMultiplier(1);
-      setShowMultiplierBonus(false);
+      setShowRankUp(false);
     } catch (error) {
       console.error('Error starting quiz:', error);
       toast({
@@ -99,30 +110,35 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
     const isCorrect = selectedIndex === currentCard.correct_answer_index;
     const userAnswer = currentCard.options[selectedIndex];
     
-    // Update streak and multiplier
+    // Update streak, rank, and multiplier
     let newStreak = currentStreak;
+    let newRank = currentRank;
     let newMultiplier = currentMultiplier;
     let pointsEarned = 0;
     
     if (isCorrect) {
       newStreak = currentStreak + 1;
+      newRank = calculateRank(newStreak);
       newMultiplier = calculateMultiplier(newStreak);
       pointsEarned = BASE_POINTS * newMultiplier;
       
-      // Show multiplier bonus animation if multiplier increased
-      if (newMultiplier > currentMultiplier) {
-        setShowMultiplierBonus(true);
-        setTimeout(() => setShowMultiplierBonus(false), 2000);
+      // Show rank up animation
+      if (newRank !== currentRank) {
+        setShowRankUp(true);
+        setTimeout(() => setShowRankUp(false), 2000);
       }
-      
-      setMaxMultiplier(Math.max(maxMultiplier, newMultiplier));
     } else {
+      // Drop rank on incorrect answer
       newStreak = 0;
+      const previousRankValue = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'].indexOf(currentRank);
+      const droppedRankIndex = Math.max(0, previousRankValue - 1);
+      newRank = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'][droppedRankIndex];
       newMultiplier = 1;
       pointsEarned = 0;
     }
     
     setCurrentStreak(newStreak);
+    setCurrentRank(newRank);
     setCurrentMultiplier(newMultiplier);
     setTotalScore(prev => prev + pointsEarned);
     
@@ -163,7 +179,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
       
       toast({
         title: "Quiz Complete! 🎉",
-        description: `You scored ${result.correct}/${result.total_questions} (${totalScore} points!)`
+        description: `Final Rank: ${currentRank} | Score: ${totalScore} points!`
       });
     } catch (error) {
       console.error('Error submitting quiz:', error);
@@ -255,17 +271,12 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
               <span className={getScoreColor(percentage)}>{percentage}%</span>
             </div>
             
-            {/* Score Display */}
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
-              <div className="text-3xl font-bold text-blue-600 mb-1">{totalScore.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Total Points Earned</div>
-              {maxMultiplier > 1 && (
-                <div className="flex items-center justify-center gap-1 mt-2 text-sm text-purple-600">
-                  <Zap className="h-4 w-4" />
-                  Max Multiplier: {maxMultiplier}x
-                </div>
-              )}
-            </div>
+            <ScoreMeter 
+              currentStreak={currentStreak}
+              currentRank={currentRank}
+              multiplier={currentMultiplier}
+              totalScore={totalScore}
+            />
             
             <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
               <div className="text-center">
@@ -323,7 +334,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
             Multiple Choice Quiz
           </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            5-minute challenge • 10 questions
+            5-minute challenge • 10 questions • Ranking System
           </p>
         </CardHeader>
 
@@ -331,20 +342,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
           <div className="text-center space-y-2">
             <h3 className="text-lg font-semibold">Test Your Knowledge</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Assess your understanding of this deck with a short
-              multiple-choice quiz.
-            </p>
-          </div>
-
-          <div className="bg-muted/50 border border-purple-200 p-4 rounded-xl text-center">
-            <div className="flex items-center justify-center gap-2 text-sm text-purple-700 font-medium">
-              <Zap className="h-4 w-4" />
-              Streak Multiplier System
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Earn up to{" "}
-              <span className="font-semibold text-purple-600">10×</span> points
-              for consecutive correct answers.
+              Climb the ranks from E to S+ with consecutive correct answers!
             </p>
           </div>
 
@@ -373,18 +371,6 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
 
   return (
     <div className="max-w-4xl mx-auto space-y-4 animate-fade-in">
-      {/* Multiplier Bonus Animation */}
-      {showMultiplierBonus && (
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 animate-scale-in">
-          <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-3 rounded-lg shadow-lg border-2 border-white">
-            <div className="flex items-center gap-2 text-lg font-bold">
-              <Zap className="h-6 w-6" />
-              {currentMultiplier}x Multiplier!
-            </div>
-          </div>
-        </div>
-      )}
-
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -397,29 +383,13 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
             </div>
           </div>
           
-          {/* Score and Multiplier Display */}
-          <div className="flex justify-between items-center bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg">
-            <div className="text-center">
-              <div className="text-xl font-bold text-blue-600">{totalScore.toLocaleString()}</div>
-              <div className="text-xs text-muted-foreground">Points</div>
-            </div>
-            
-            <div className="text-center">
-              <div className={`text-xl font-bold flex items-center gap-1 ${currentMultiplier > 1 ? 'text-purple-600' : 'text-gray-500'}`}>
-                <Zap className="h-4 w-4" />
-                {currentMultiplier}x
-              </div>
-              <div className="text-xs text-muted-foreground">Multiplier</div>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-xl font-bold text-orange-600 flex items-center gap-1">
-                <Star className="h-4 w-4" />
-                {currentStreak}
-              </div>
-              <div className="text-xs text-muted-foreground">Streak</div>
-            </div>
-          </div>
+          <ScoreMeter 
+            currentStreak={currentStreak}
+            currentRank={currentRank}
+            multiplier={currentMultiplier}
+            totalScore={totalScore}
+            showRankUp={showRankUp}
+          />
           
           <Progress value={progress} className="w-full" />
           <div className="text-sm text-muted-foreground">
@@ -490,7 +460,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
                     </div>
                   ) : (
                     <div className="text-red-600 font-medium">
-                      Streak reset! Next answer worth {BASE_POINTS} points.
+                      Streak broken! Rank dropped.
                     </div>
                   )}
                 </div>
