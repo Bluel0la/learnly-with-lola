@@ -316,42 +316,49 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
 
   if (!isActive && quizCards.length === 0) {
     return (
-      <Card className="max-w-2xl mx-auto animate-fade-in">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-6 w-6" />
+      <Card className="max-w-xl mx-auto shadow-md border border-muted animate-fade-in rounded-2xl">
+        <CardHeader className="bg-gradient-to-br from-indigo-100 to-purple-100 rounded-t-2xl p-6">
+          <CardTitle className="flex items-center gap-3 text-xl font-semibold text-indigo-800">
+            <Clock className="h-5 w-5 text-indigo-700" />
             Multiple Choice Quiz
           </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            5-minute challenge • 10 questions
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-center space-y-4">
-            <div className="text-4xl">🎯</div>
-            <h3 className="text-lg font-semibold">Test your knowledge!</h3>
-            <p className="text-muted-foreground">
-              Take a 5-minute multiple choice quiz with 10 questions from this deck.
+
+        <CardContent className="p-6 space-y-6">
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">Test Your Knowledge</h3>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Assess your understanding of this deck with a short
+              multiple-choice quiz.
             </p>
-            <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 rounded-lg border">
-              <div className="flex items-center justify-center gap-2 text-sm text-purple-600">
-                <Zap className="h-4 w-4" />
-                <span className="font-medium">New: Streak Multiplier System!</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Earn up to 10x points for consecutive correct answers
-              </p>
-            </div>
           </div>
-          
-          <div className="flex gap-2 justify-center">
-            <Button 
-              onClick={startQuiz} 
-              size="lg" 
-              className="hover:scale-105 transition-transform"
+
+          <div className="bg-muted/50 border border-purple-200 p-4 rounded-xl text-center">
+            <div className="flex items-center justify-center gap-2 text-sm text-purple-700 font-medium">
+              <Zap className="h-4 w-4" />
+              Streak Multiplier System
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Earn up to{" "}
+              <span className="font-semibold text-purple-600">10×</span> points
+              for consecutive correct answers.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button
+              onClick={startQuiz}
+              size="lg"
+              className="w-full hover:scale-[1.03] transition-transform"
               disabled={isLoading}
             >
-              {isLoading ? <LoadingSpinner size="sm" className="mr-2" /> : null}
+              {isLoading && <LoadingSpinner size="sm" className="mr-2" />}
               Start Quiz
             </Button>
-            <Button variant="outline" onClick={onComplete}>
+            <Button variant="outline" onClick={onComplete} className="w-full">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Deck
             </Button>
