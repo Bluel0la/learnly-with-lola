@@ -300,6 +300,63 @@ export type Database = {
           },
         ]
       }
+      quiz_attempts: {
+        Row: {
+          correct_answers: number
+          created_at: string
+          deck_id: string
+          final_rank: string
+          final_score: number
+          id: string
+          max_streak: number
+          time_taken_seconds: number | null
+          total_questions: number
+          user_id: string
+          wrong_answers: number
+        }
+        Insert: {
+          correct_answers: number
+          created_at?: string
+          deck_id: string
+          final_rank?: string
+          final_score?: number
+          id?: string
+          max_streak?: number
+          time_taken_seconds?: number | null
+          total_questions: number
+          user_id: string
+          wrong_answers: number
+        }
+        Update: {
+          correct_answers?: number
+          created_at?: string
+          deck_id?: string
+          final_rank?: string
+          final_score?: number
+          id?: string
+          max_streak?: number
+          time_taken_seconds?: number | null
+          total_questions?: number
+          user_id?: string
+          wrong_answers?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "deck"
+            referencedColumns: ["deck_id"]
+          },
+          {
+            foreignKeyName: "quiz_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       quiz_question: {
         Row: {
           question_answer: string

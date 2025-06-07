@@ -1,109 +1,109 @@
 
 import React from 'react';
-import { Star, Zap } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
+import { Trophy, Zap } from 'lucide-react';
 
 interface ScoreMeterProps {
-  currentStreak: number;
-  currentRank: string;
+  streak: number;
+  rank: string;
   multiplier: number;
-  totalScore: number;
-  showRankUp?: boolean;
+  totalQuestions: number;
 }
 
-const ScoreMeter: React.FC<ScoreMeterProps> = ({ 
-  currentStreak, 
-  currentRank, 
-  multiplier, 
-  totalScore,
-  showRankUp = false 
-}) => {
-  const getRankColor = (rank: string) => {
-    switch (rank) {
-      case 'E': return 'text-gray-500 bg-gray-100';
-      case 'D': return 'text-orange-600 bg-orange-100';
-      case 'C': return 'text-yellow-600 bg-yellow-100';
-      case 'B': return 'text-blue-600 bg-blue-100';
-      case 'A': return 'text-green-600 bg-green-100';
-      case 'S': return 'text-purple-600 bg-purple-100';
-      case 'S+': return 'text-pink-600 bg-gradient-to-r from-pink-100 to-purple-100';
-      default: return 'text-gray-500 bg-gray-100';
-    }
-  };
+const ScoreMeter: React.FC<ScoreMeterProps> = ({ streak, rank, multiplier, totalQuestions }) => {
+  // Calculate questions needed for next rank based on deck size
+  const getQuestionsForNextRank = (currentRank: string): number => {
+    const rankThresholds = {
+      'E': Math.max(2, Math.floor(totalQuestions * 0.15)),
+      'D': Math.max(3, Math.floor(totalQuestions * 0.25)),
+      'C': Math.max(4, Math.floor(totalQuestions * 0.35)),
+      'B': Math.max(5, Math.floor(totalQuestions * 0.45)),
+      'A': Math.max(6, Math.floor(totalQuestions * 0.60)),
+      'S': Math.max(7, Math.floor(totalQuestions * 0.75)),
+      'S+': Math.max(8, Math.floor(totalQuestions * 0.90))
+    };
 
-  const getStreakForNextRank = (rank: string) => {
-    const streakRequirements = { E: 0, D: 2, C: 4, B: 6, A: 8, S: 10, 'S+': 12 };
     const ranks = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'];
-    const currentIndex = ranks.indexOf(rank);
-    return currentIndex < ranks.length - 1 ? streakRequirements[ranks[currentIndex + 1]] : 12;
+    const currentIndex = ranks.indexOf(currentRank);
+    
+    if (currentIndex === -1 || currentIndex === ranks.length - 1) return 0;
+    
+    const nextRank = ranks[currentIndex + 1];
+    return rankThresholds[nextRank as keyof typeof rankThresholds];
   };
 
-  const nextRankStreak = getStreakForNextRank(currentRank);
-  const progress = Math.min((currentStreak / nextRankStreak) * 100, 100);
+  const getRankColor = (rank: string): string => {
+    const colors = {
+      'E': 'text-gray-500',
+      'D': 'text-orange-500',
+      'C': 'text-yellow-500',
+      'B': 'text-blue-500',
+      'A': 'text-green-500',
+      'S': 'text-purple-500',
+      'S+': 'text-pink-500'
+    };
+    return colors[rank as keyof typeof colors] || 'text-gray-500';
+  };
+
+  const getMultiplierColor = (multiplier: number): string => {
+    if (multiplier >= 5) return 'text-pink-500';
+    if (multiplier >= 4) return 'text-purple-500';
+    if (multiplier >= 3) return 'text-blue-500';
+    if (multiplier >= 2) return 'text-green-500';
+    return 'text-gray-500';
+  };
+
+  const questionsForNext = getQuestionsForNextRank(rank);
+  const isMaxRank = rank === 'S+';
 
   return (
-    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border">
-      {showRankUp && (
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0, opacity: 0 }}
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-lg shadow-lg border-2 border-white"
-        >
-          <div className="flex items-center gap-2 text-lg font-bold">
-            <Star className="h-6 w-6" />
-            Rank Up! {currentRank}
+    <Card className="mb-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 transition-all duration-300">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <Trophy className={`h-6 w-6 ${getRankColor(rank)}`} />
+              <div>
+                <div className={`text-2xl font-bold ${getRankColor(rank)} transition-colors duration-300`}>
+                  {rank}
+                </div>
+                <div className="text-xs text-gray-600">
+                  {isMaxRank ? 'MAX RANK!' : `${questionsForNext - streak} more for next rank`}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Zap className={`h-5 w-5 ${getMultiplierColor(multiplier)}`} />
+              <div>
+                <div className={`text-lg font-bold ${getMultiplierColor(multiplier)} transition-colors duration-300`}>
+                  {multiplier}x
+                </div>
+                <div className="text-xs text-gray-600">Multiplier</div>
+              </div>
+            </div>
           </div>
-        </motion.div>
-      )}
-      
-      <div className="flex justify-between items-center mb-3">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-indigo-600">{totalScore.toLocaleString()}</div>
-          <div className="text-xs text-muted-foreground">Total Score</div>
+          
+          <div className="text-right">
+            <div className="text-lg font-semibold text-blue-600">
+              {streak}
+            </div>
+            <div className="text-xs text-gray-600">Streak</div>
+          </div>
         </div>
         
-        <div className="text-center">
-          <div className={`text-2xl font-bold px-3 py-1 rounded-lg ${getRankColor(currentRank)}`}>
-            {currentRank}
+        {!isMaxRank && (
+          <div className="mt-3">
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.min((streak / questionsForNext) * 100, 100)}%` }}
+              />
+            </div>
           </div>
-          <div className="text-xs text-muted-foreground">Rank</div>
-        </div>
-        
-        <div className="text-center">
-          <div className="text-2xl font-bold text-orange-600 flex items-center gap-1">
-            <Star className="h-5 w-5" />
-            {currentStreak}
-          </div>
-          <div className="text-xs text-muted-foreground">Streak</div>
-        </div>
-        
-        <div className="text-center">
-          <div className={`text-2xl font-bold flex items-center gap-1 ${multiplier > 1 ? 'text-purple-600' : 'text-gray-500'}`}>
-            <Zap className="h-5 w-5" />
-            {multiplier}x
-          </div>
-          <div className="text-xs text-muted-foreground">Multiplier</div>
-        </div>
-      </div>
-      
-      {currentRank !== 'S+' && (
-        <div className="w-full">
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span>Progress to next rank</span>
-            <span>{currentStreak}/{nextRankStreak}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <motion.div
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 h-2 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

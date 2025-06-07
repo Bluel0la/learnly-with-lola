@@ -1,15 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Clock, CheckCircle, XCircle, Trophy, ArrowLeft, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { QuizCard, QuizResponse, QuizResult, flashcardApi } from '@/services/flashcardApi';
-import LoadingSpinner from '@/components/ui/loading-spinner';
-import QuizReview from './QuizReview';
+import { flashcardApi, QuizCard, QuizResponse } from '@/services/api';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { supabase } from '@/integrations/supabase/client';
 import ScoreMeter from './ScoreMeter';
+import QuizReview from './QuizReview';
 
 interface MultipleChoiceQuizProps {
   deckId: string;
@@ -17,352 +15,204 @@ interface MultipleChoiceQuizProps {
 }
 
 const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onComplete }) => {
-  const { toast } = useToast();
   const [quizCards, setQuizCards] = useState<QuizCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<string>('');
-  const [showAnswer, setShowAnswer] = useState(false);
   const [userResponses, setUserResponses] = useState<QuizResponse[]>([]);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
-  const [isActive, setIsActive] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [showReview, setShowReview] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isComplete, setIsComplete] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
-  // Score meter system state
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [currentRank, setCurrentRank] = useState('E');
-  const [currentMultiplier, setCurrentMultiplier] = useState(1);
+  // Score tracking
+  const [streak, setStreak] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
+  const [rank, setRank] = useState('E');
+  const [multiplier, setMultiplier] = useState(1);
   const [totalScore, setTotalScore] = useState(0);
-  const [showRankUp, setShowRankUp] = useState(false);
+  const [startTime] = useState(Date.now());
 
-  const BASE_POINTS = 100;
+  const { toast } = useToast();
+  const { profile } = useUserProfile();
 
-  const calculateRank = (streak: number): string => {
-    if (streak >= 12) return 'S+';
-    if (streak >= 10) return 'S';
-    if (streak >= 8) return 'A';
-    if (streak >= 6) return 'B';
-    if (streak >= 4) return 'C';
-    if (streak >= 2) return 'D';
+  useEffect(() => {
+    const startQuiz = async () => {
+      try {
+        setIsLoading(true);
+        const quizData = await flashcardApi.startQuiz(deckId, 10);
+        setQuizCards(quizData.cards);
+      } catch (error) {
+        console.error('Failed to start quiz:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start quiz. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    startQuiz();
+  }, [deckId, toast]);
+
+  const calculateRank = (currentStreak: number, totalQuestions: number): string => {
+    const rankThresholds = {
+      'S+': Math.max(8, Math.floor(totalQuestions * 0.90)),
+      'S': Math.max(7, Math.floor(totalQuestions * 0.75)),
+      'A': Math.max(6, Math.floor(totalQuestions * 0.60)),
+      'B': Math.max(5, Math.floor(totalQuestions * 0.45)),
+      'C': Math.max(4, Math.floor(totalQuestions * 0.35)),
+      'D': Math.max(3, Math.floor(totalQuestions * 0.25)),
+      'E': Math.max(2, Math.floor(totalQuestions * 0.15))
+    };
+
+    for (const [rankName, threshold] of Object.entries(rankThresholds)) {
+      if (currentStreak >= threshold) {
+        return rankName;
+      }
+    }
     return 'E';
   };
 
-  const calculateMultiplier = (streak: number): number => {
-    return Math.min(Math.floor(streak / 2) + 1, 6); // Max 6x multiplier
+  const calculateMultiplier = (currentStreak: number): number => {
+    return Math.min(1 + Math.floor(currentStreak / 2), 6);
   };
 
-  const startQuiz = async () => {
-    try {
-      console.log('Starting quiz for deck:', deckId);
-      setIsLoading(true);
-      const quizData = await flashcardApi.startQuiz(deckId, 10);
-      
-      console.log('Quiz data received:', quizData);
-      
-      if (!quizData.cards || quizData.cards.length === 0) {
-        toast({
-          title: "No cards available",
-          description: "This deck doesn't have enough cards for a quiz",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      setQuizCards(quizData.cards);
-      setUserResponses([]);
-      setIsActive(true);
-      setTimeLeft(300);
-      setCurrentCardIndex(0);
-      setSelectedOption('');
-      setShowAnswer(false);
-      setIsAnswered(false);
-      
-      // Reset score meter system
-      setCurrentStreak(0);
-      setCurrentRank('E');
-      setCurrentMultiplier(1);
-      setTotalScore(0);
-      setShowRankUp(false);
-    } catch (error) {
-      console.error('Error starting quiz:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start quiz",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAnswerSelect = (answer: string) => {
+    if (hasAnswered) return;
+    setSelectedAnswer(answer);
   };
 
-  const handleOptionSelect = (value: string) => {
-    if (isAnswered) return;
-    
-    setSelectedOption(value);
-    setIsAnswered(true);
-    
+  const handleSubmitAnswer = async () => {
+    if (!selectedAnswer || hasAnswered) return;
+
     const currentCard = quizCards[currentCardIndex];
-    const selectedIndex = parseInt(value);
-    const isCorrect = selectedIndex === currentCard.correct_answer_index;
-    const userAnswer = currentCard.options[selectedIndex];
-    
-    // Update streak, rank, and multiplier
-    let newStreak = currentStreak;
-    let newRank = currentRank;
-    let newMultiplier = currentMultiplier;
-    let pointsEarned = 0;
-    
-    if (isCorrect) {
-      newStreak = currentStreak + 1;
-      newRank = calculateRank(newStreak);
-      newMultiplier = calculateMultiplier(newStreak);
-      pointsEarned = BASE_POINTS * newMultiplier;
-      
-      // Show rank up animation
-      if (newRank !== currentRank) {
-        setShowRankUp(true);
-        setTimeout(() => setShowRankUp(false), 2000);
-      }
-    } else {
-      // Drop rank on incorrect answer
-      newStreak = 0;
-      const previousRankValue = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'].indexOf(currentRank);
-      const droppedRankIndex = Math.max(0, previousRankValue - 1);
-      newRank = ['E', 'D', 'C', 'B', 'A', 'S', 'S+'][droppedRankIndex];
-      newMultiplier = 1;
-      pointsEarned = 0;
-    }
-    
-    setCurrentStreak(newStreak);
-    setCurrentRank(newRank);
-    setCurrentMultiplier(newMultiplier);
-    setTotalScore(prev => prev + pointsEarned);
-    
-    // Add response to array
+    const correctAnswer = currentCard.options[currentCard.correct_answer_index];
+    const isCorrect = selectedAnswer === correctAnswer;
+
+    setHasAnswered(true);
+
     const response: QuizResponse = {
       card_id: currentCard.card_id,
-      user_answer: userAnswer,
+      user_answer: selectedAnswer,
       is_correct: isCorrect
     };
-    
+
     setUserResponses(prev => [...prev, response]);
-    setShowAnswer(true);
-    
-    // Auto-advance after 2.5 seconds
+
+    // Update score tracking
+    let newStreak = streak;
+    let newRank = rank;
+    let newMultiplier = multiplier;
+
+    if (isCorrect) {
+      newStreak = streak + 1;
+      setMaxStreak(prev => Math.max(prev, newStreak));
+      
+      newRank = calculateRank(newStreak, quizCards.length);
+      newMultiplier = calculateMultiplier(newStreak);
+      
+      const points = 100 * newMultiplier;
+      setTotalScore(prev => prev + points);
+    } else {
+      newStreak = 0;
+      newRank = calculateRank(newStreak, quizCards.length);
+      newMultiplier = 1;
+    }
+
+    setStreak(newStreak);
+    setRank(newRank);
+    setMultiplier(newMultiplier);
+
+    // Wait for a moment to show the result, then transition
     setTimeout(() => {
       if (currentCardIndex < quizCards.length - 1) {
-        setCurrentCardIndex(prev => prev + 1);
-        setSelectedOption('');
-        setShowAnswer(false);
-        setIsAnswered(false);
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setCurrentCardIndex(prev => prev + 1);
+          setSelectedAnswer(null);
+          setHasAnswered(false);
+          setIsTransitioning(false);
+        }, 300);
       } else {
-        submitQuiz();
+        finishQuiz([...userResponses, response]);
       }
-    }, 2500);
+    }, 1500);
   };
 
-  const submitQuiz = async () => {
+  const finishQuiz = async (allResponses: QuizResponse[]) => {
     try {
-      console.log('Submitting quiz...');
-      setIsSubmitting(true);
+      const endTime = Date.now();
+      const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
       
-      const result = await flashcardApi.submitQuiz(userResponses);
-      console.log('Quiz result received:', result);
-      
-      setQuizResult(result);
-      setIsCompleted(true);
-      setIsActive(false);
-      
-      toast({
-        title: "Quiz Complete! 🎉",
-        description: `Final Rank: ${currentRank} | Score: ${totalScore} points!`
-      });
-    } catch (error) {
-      console.error('Error submitting quiz:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit quiz",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Timer effect
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    
-    if (isActive && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft(timeLeft => {
-          if (timeLeft <= 1) {
-            submitQuiz();
-            return 0;
-          }
-          return timeLeft - 1;
+      // Save quiz attempt to database
+      if (profile?.user_id) {
+        const correctAnswers = allResponses.filter(r => r.is_correct).length;
+        const wrongAnswers = allResponses.length - correctAnswers;
+        
+        await supabase.from('quiz_attempts').insert({
+          user_id: profile.user_id,
+          deck_id: deckId,
+          total_questions: quizCards.length,
+          correct_answers: correctAnswers,
+          wrong_answers: wrongAnswers,
+          final_score: totalScore,
+          final_rank: rank,
+          max_streak: maxStreak,
+          time_taken_seconds: timeTakenSeconds
         });
-      }, 1000);
-    }
-    
-    return () => clearInterval(interval);
-  }, [isActive, timeLeft]);
+      }
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+      setIsComplete(true);
+    } catch (error) {
+      console.error('Failed to save quiz attempt:', error);
+      // Still complete the quiz even if saving fails
+      setIsComplete(true);
+    }
   };
 
-  const getScoreColor = (percentage: number) => {
-    if (percentage >= 80) return 'text-green-600';
-    if (percentage >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+  const handleRestart = () => {
+    setCurrentCardIndex(0);
+    setUserResponses([]);
+    setSelectedAnswer(null);
+    setHasAnswered(false);
+    setIsComplete(false);
+    setStreak(0);
+    setMaxStreak(0);
+    setRank('E');
+    setMultiplier(1);
+    setTotalScore(0);
+    setIsTransitioning(false);
   };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
-        <LoadingSpinner size="lg" />
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg">Loading quiz...</div>
       </div>
     );
   }
 
-  if (showReview && quizCards.length > 0 && userResponses.length > 0) {
+  if (isComplete) {
     return (
       <QuizReview
+        deckId={deckId}
         quizCards={quizCards}
         userResponses={userResponses}
-        onRetakeQuiz={() => {
-          setShowReview(false);
-          setIsCompleted(false);
-          setQuizResult(null);
-          setQuizCards([]);
-          setUserResponses([]);
-          setIsActive(false);
-        }}
-        onBackToDeck={() => {
-          setShowReview(false);
-          onComplete?.();
-        }}
+        onRestart={handleRestart}
+        onExit={onComplete}
       />
     );
   }
 
-  if (isCompleted && quizResult) {
-    const percentage = Math.round((quizResult.correct / quizResult.total_questions) * 100);
-    const hasFailedCards = quizResult.wrong > 0;
-    
+  if (quizCards.length === 0) {
     return (
-      <Card className="max-w-4xl mx-auto animate-fade-in">
-        <CardHeader className="text-center">
-          <CardTitle className="flex items-center justify-center gap-2 text-2xl">
-            <Trophy className="h-8 w-8 text-yellow-500" />
-            Quiz Complete!
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="text-center space-y-4">
-            <div className="text-6xl font-bold mb-4">
-              <span className={getScoreColor(percentage)}>{percentage}%</span>
-            </div>
-            
-            <ScoreMeter 
-              currentStreak={currentStreak}
-              currentRank={currentRank}
-              multiplier={currentMultiplier}
-              totalScore={totalScore}
-            />
-            
-            <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{quizResult.total_questions}</div>
-                <div className="text-sm text-muted-foreground">Total</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{quizResult.correct}</div>
-                <div className="text-sm text-muted-foreground">Correct</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">{quizResult.wrong}</div>
-                <div className="text-sm text-muted-foreground">Wrong</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-2 justify-center flex-wrap">
-            {hasFailedCards && (
-              <Button 
-                onClick={() => setShowReview(true)}
-                variant="outline"
-                className="hover:scale-105 transition-transform"
-              >
-                <BookOpen className="h-4 w-4 mr-2" />
-                Review Missed Questions
-              </Button>
-            )}
-            <Button onClick={() => {
-              setIsCompleted(false);
-              setQuizResult(null);
-              setQuizCards([]);
-              setUserResponses([]);
-              setIsActive(false);
-              setShowReview(false);
-            }} className="hover:scale-105 transition-transform">
-              Retake Quiz
-            </Button>
-            <Button variant="outline" onClick={onComplete}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Deck
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (!isActive && quizCards.length === 0) {
-    return (
-      <Card className="max-w-xl mx-auto shadow-md border border-muted animate-fade-in rounded-2xl">
-        <CardHeader className="bg-gradient-to-br from-indigo-100 to-purple-100 rounded-t-2xl p-6">
-          <CardTitle className="flex items-center gap-3 text-xl font-semibold text-indigo-800">
-            <Clock className="h-5 w-5 text-indigo-700" />
-            Multiple Choice Quiz
-          </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            5-minute challenge • 10 questions • Ranking System
-          </p>
-        </CardHeader>
-
-        <CardContent className="p-6 space-y-6">
-          <div className="text-center space-y-2">
-            <h3 className="text-lg font-semibold">Test Your Knowledge</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Climb the ranks from E to S+ with consecutive correct answers!
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Button
-              onClick={startQuiz}
-              size="lg"
-              className="w-full hover:scale-[1.03] transition-transform"
-              disabled={isLoading}
-            >
-              {isLoading && <LoadingSpinner size="sm" className="mr-2" />}
-              Start Quiz
-            </Button>
-            <Button variant="outline" onClick={onComplete} className="w-full">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Deck
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="text-center py-8">
+        <h3 className="text-xl font-semibold mb-2">No Quiz Available</h3>
+        <p className="text-gray-600 mb-4">This deck doesn't have enough cards for a quiz.</p>
+        <Button onClick={onComplete}>Back to Deck</Button>
+      </div>
     );
   }
 
@@ -370,141 +220,72 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const progress = ((currentCardIndex + 1) / quizCards.length) * 100;
 
   return (
-    <div className="max-w-4xl mx-auto animate-fade-in space-y-6">
-      <Card className="rounded-2xl border shadow-sm">
-        <CardHeader className="space-y-4">
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2 text-xl font-semibold text-indigo-800">
-              <Clock className="h-5 w-5 text-indigo-700" />
-              Quiz Mode
-            </CardTitle>
-            <div
-              className={`text-lg font-mono ${
-                timeLeft < 60 ? "text-red-500" : "text-muted-foreground"
-              }`}
-            >
-              {formatTime(timeLeft)}
-            </div>
-          </div>
-
-          <ScoreMeter
-            currentStreak={currentStreak}
-            currentRank={currentRank}
-            multiplier={currentMultiplier}
-            totalScore={totalScore}
-            showRankUp={showRankUp}
+    <div className="max-w-2xl mx-auto">
+      <ScoreMeter 
+        streak={streak} 
+        rank={rank} 
+        multiplier={multiplier} 
+        totalQuestions={quizCards.length}
+      />
+      
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-600">
+            Question {currentCardIndex + 1} of {quizCards.length}
+          </span>
+          <span className="text-sm font-medium text-blue-600">
+            Score: {totalScore}
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div 
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
           />
+        </div>
+      </div>
 
-          <div className="flex flex-col gap-2">
-            <Progress value={progress} className="w-full" />
-            <div className="text-sm text-muted-foreground">
-              Question {currentCardIndex + 1} of {quizCards.length}
-            </div>
-          </div>
+      <Card className={`transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
+        <CardHeader>
+          <CardTitle className="text-lg">{currentCard.question}</CardTitle>
         </CardHeader>
+        <CardContent className="space-y-3">
+          {currentCard.options.map((option, index) => {
+            const isSelected = selectedAnswer === option;
+            const isCorrect = hasAnswered && option === currentCard.options[currentCard.correct_answer_index];
+            const isWrong = hasAnswered && isSelected && !isCorrect;
+            
+            return (
+              <Button
+                key={index}
+                variant={isSelected ? "default" : "outline"}
+                className={`w-full text-left justify-start h-auto p-4 transition-all duration-300 ${
+                  hasAnswered
+                    ? isCorrect
+                      ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
+                      : isWrong
+                      ? 'bg-red-500 hover:bg-red-500 text-white border-red-500'
+                      : 'opacity-50'
+                    : isSelected
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'hover:bg-gray-50'
+                }`}
+                onClick={() => handleAnswerSelect(option)}
+                disabled={hasAnswered}
+              >
+                {option}
+              </Button>
+            );
+          })}
 
-        <CardContent className="space-y-8">
-          {/* Question Prompt */}
-          <section>
-            <h3 className="font-semibold text-lg mb-3">Question</h3>
-            <div className="bg-muted/50 p-5 rounded-xl border min-h-[100px] text-base whitespace-pre-wrap leading-relaxed">
-              {currentCard?.question}
-            </div>
-          </section>
-
-          {/* Answer Options */}
-          <section>
-            <h3 className="font-semibold text-lg mb-3">Choose your answer</h3>
-            <RadioGroup
-              value={selectedOption}
-              onValueChange={handleOptionSelect}
-              disabled={isAnswered}
+          {!hasAnswered && (
+            <Button 
+              onClick={handleSubmitAnswer}
+              disabled={!selectedAnswer}
+              className="w-full mt-4"
             >
-              <div className="space-y-3">
-                {currentCard?.options.map((option, index) => {
-                  const isSelected = selectedOption === index.toString();
-                  const isCorrect = index === currentCard.correct_answer_index;
-                  const isIncorrect = isSelected && !isCorrect;
-
-                  let baseStyle =
-                    "p-4 rounded-lg border transition-all cursor-pointer";
-                  let styleVariant = "";
-
-                  if (showAnswer) {
-                    if (isCorrect) {
-                      styleVariant =
-                        "bg-green-100 border-green-500 text-green-800";
-                    } else if (isIncorrect) {
-                      styleVariant = "bg-red-100 border-red-500 text-red-800";
-                    } else {
-                      styleVariant = "bg-gray-50 border-gray-300 text-gray-600";
-                    }
-                  } else if (isSelected) {
-                    styleVariant = "bg-blue-100 border-blue-500";
-                  } else {
-                    styleVariant = "hover:bg-gray-50 border-gray-300";
-                  }
-
-                  return (
-                    <div key={index} className={`${baseStyle} ${styleVariant}`}>
-                      <div className="flex items-center gap-3">
-                        <RadioGroupItem
-                          value={index.toString()}
-                          id={`option-${index}`}
-                        />
-                        <Label htmlFor={`option-${index}`} className="flex-1">
-                          {option}
-                        </Label>
-                        {showAnswer && isCorrect && (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        )}
-                        {showAnswer && isIncorrect && (
-                          <XCircle className="h-5 w-5 text-red-600" />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </RadioGroup>
-          </section>
-
-          {/* Answer Feedback */}
-          {showAnswer && (
-            <div className="text-center space-y-2">
-              {isAnswered && selectedOption && (
-                <div>
-                  {parseInt(selectedOption) ===
-                  currentCard.correct_answer_index ? (
-                    <p className="text-green-600 font-medium">
-                      +{BASE_POINTS * currentMultiplier} points!
-                      {currentMultiplier > 1 && (
-                        <>
-                          {" "}
-                          ({BASE_POINTS} × {currentMultiplier}x)
-                        </>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="text-red-600 font-medium">
-                      Streak broken! Rank dropped.
-                    </p>
-                  )}
-                </div>
-              )}
-              <p className="text-sm text-muted-foreground">
-                {currentCardIndex < quizCards.length - 1
-                  ? "Next question in a moment..."
-                  : "Finishing quiz..."}
-              </p>
-            </div>
-          )}
-
-          {/* Loading Spinner */}
-          {isSubmitting && (
-            <div className="flex justify-center">
-              <LoadingSpinner size="sm" />
-            </div>
+              Submit Answer
+            </Button>
           )}
         </CardContent>
       </Card>

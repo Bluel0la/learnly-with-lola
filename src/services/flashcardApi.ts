@@ -1,4 +1,3 @@
-
 import { API_BASE_URL, getAuthHeaders, getFileUploadHeaders } from './apiConfig';
 
 export interface FlashcardDeck {
@@ -80,6 +79,20 @@ export interface QuizResult {
     correct_answer: string;
     correct: boolean;
   }>;
+}
+
+export interface QuizAttempt {
+  id: string;
+  user_id: string;
+  deck_id: string;
+  total_questions: number;
+  correct_answers: number;
+  wrong_answers: number;
+  final_score: number;
+  final_rank: string;
+  max_streak: number;
+  time_taken_seconds?: number;
+  created_at: string;
 }
 
 export const flashcardApi = {
@@ -465,5 +478,38 @@ export const flashcardApi = {
     const result = await response.json();
     console.log('Adaptive drills generated successfully:', result);
     return result;
+  },
+
+  // Quiz attempts methods
+  getQuizAttempts: async (deckId?: string): Promise<QuizAttempt[]> => {
+    let url = `${API_BASE_URL}/flashcard/quiz-attempts`;
+    if (deckId) {
+      url += `?deck_id=${deckId}`;
+    }
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch quiz attempts');
+    }
+    
+    return response.json();
+  },
+
+  getBestScore: async (deckId: string): Promise<number> => {
+    const response = await fetch(`${API_BASE_URL}/flashcard/decks/${deckId}/best-score`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch best score');
+    }
+    
+    const result = await response.json();
+    return result.best_score || 0;
   }
 };
