@@ -1,20 +1,17 @@
 
-import Hero from "@/components/Hero";
-import Features from "@/components/Features";
-import Testimonials from "@/components/Testimonials";
-import CTA from "@/components/CTA";
-import Footer from "@/components/Footer";
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
-  return (
-    <div className="min-h-screen">
-      <Hero />
-      <Features />
-      <Testimonials />
-      <CTA />
-      <Footer />
-    </div>
-  );
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Redirect to the chat page
+    navigate('/chat');
+  }, [navigate]);
+
+  // This will never render as we redirect immediately
+  return null;
 };
 
 export default Index;

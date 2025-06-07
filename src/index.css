@@ -1,9 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 
 @layer base {
   :root {
@@ -38,19 +38,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -82,6 +75,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -99,47 +93,312 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-bold;
+  }
+
+  /* Mobile viewport fixes */
+  html {
+    height: 100%;
+    height: -webkit-fill-available;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Safe area support for mobile devices */
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-inset-right {
+    padding-right: env(safe-area-inset-right);
   }
 }
 
-@layer utilities {
-  .bg-grid-pattern {
-    background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);
-    background-size: 20px 20px;
+@layer components {
+  .academic-card {
+    @apply bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 md:p-6;
+  }
+  
+  .chat-message-user {
+    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] mb-4 overflow-hidden;
+  }
+  
+  .chat-message-ai {
+    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] mb-4 overflow-hidden;
+  }
+  
+  .chat-message-math {
+    @apply border-l-4 border-green-500;
+  }
+  
+  .chat-message-summary {
+    @apply border-l-4 border-blue-500;
+  }
+  
+  .btn-smart {
+    @apply inline-flex items-center rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors;
+  }
+  
+  /* New styles for ChatGPT-like interface */
+  .chat-input {
+    @apply w-full p-2 md:p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+  
+  .action-button {
+    @apply inline-flex items-center justify-center p-1.5 md:p-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-100;
   }
 
-  .hover-scale {
-    @apply transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg;
+  /* LaTeX and Math specific styles - LEFT ALIGNED */
+  .math-display {
+    @apply my-4 overflow-x-auto overflow-y-hidden;
+    text-align: left; /* Changed from center to left */
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
-  .animate-fade-in {
-    animation: fadeIn 0.8s ease-out forwards;
+  .math-inline {
+    @apply inline-block;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
   }
 
-  .animation-delay-200 {
-    animation-delay: 0.2s;
-    opacity: 0;
+
+  /* KaTeX overrides for better display and left alignment */
+  .katex {
+    font-size: 1.1em;
+    line-height: 1.2;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
-  .animation-delay-400 {
-    animation-delay: 0.4s;
-    opacity: 0;
+  .katex-display {
+    margin: 1em 0;
+    text-align: left; /* Changed from center to left */
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5em 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
-  .animation-delay-600 {
-    animation-delay: 0.6s;
-    opacity: 0;
+  .katex-display > .katex {
+    display: inline-block;
+    white-space: normal; /* Changed from nowrap to allow wrapping */
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure chat messages handle math content properly */
+  .chat-message-user .katex-display,
+  .chat-message-ai .katex-display {
+    margin: 0.5em -0.5em;
+    padding: 0.5em;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0.5em;
+    text-align: left; /* Ensure left alignment in chat bubbles */
+  }
+
+  /* Flashcard animations */
+  .flashcard-flip {
+    @apply transition-transform duration-700;
+    transform-style: preserve-3d;
+  }
+
+  .flashcard-flip.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .flashcard-face {
+    @apply absolute inset-0 w-full h-full;
+    backface-visibility: hidden;
+  }
+
+  .flashcard-back {
+    transform: rotateY(180deg);
+  }
+  /* Latex Display */
+  .math-display {
+  @apply my-3 w-full text-left;
+  overflow-x: auto;
+  }
+  
+  .math-display .katex-display {
+    margin: 0 !important;
+    text-align: left !important;
+  }
+  
+  .math-display .katex {
+    font-size: 1.1em;
+    text-align: left !important;
+  }
+  
+  .math-inline .katex {
+    font-size: 1em !important;
+  }
+  
+  .katex {
+    font-size: inherit !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+  
+  /* Responsive container utilities */
+  .container-responsive {
+    @apply px-3 md:px-6 lg:px-8;
+  }
+
+  /* Touch-friendly interactive elements */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Responsive text sizes */
+  .text-responsive-sm {
+    @apply text-sm md:text-base;
+  }
+
+  .text-responsive-md {
+    @apply text-base md:text-lg;
+  }
+
+  .text-responsive-lg {
+    @apply text-lg md:text-xl lg:text-2xl;
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+/* Enhanced animations for flashcards */
+@keyframes card-flip {
+  0% { transform: rotateY(0deg) scale(1); }
+  50% { transform: rotateY(90deg) scale(0.95); }
+  100% { transform: rotateY(0deg) scale(1); }
+}
+
+@keyframes success-bounce {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.6); }
+  100% { box-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
+}
+
+.animate-card-flip {
+  animation: card-flip 0.8s ease-in-out;
+}
+
+.animate-success-bounce {
+  animation: success-bounce 0.6s ease-out;
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Mobile-specific fixes */
+@media screen and (max-width: 768px) {
+  /* Prevent horizontal scrolling */
+  html, body {
+    overflow-x: hidden;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+
+  /* Better touch targets */
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+
+  /* Improved readability */
+  .text-sm {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  /* Better spacing for mobile */
+  .space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+
+  .space-y-6 > * + * {
+    margin-top: 1rem;
+  }
+
+  /* Mobile LaTeX adjustments - LEFT ALIGNED */
+  .katex {
+    font-size: 0.9em;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .katex-display {
+    font-size: 0.85em;
+    margin: 0.5em -1em;
+    padding: 0.5em 1em;
+    overflow-x: auto;
+    text-align: left; /* Ensure left alignment on mobile */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .math-display {
+    margin: 0.5em -1em;
+    padding: 0.5em 1em;
+    text-align: left; /* Ensure left alignment on mobile */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Tablet-specific optimizations */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  /* Better grid layouts for tablets */
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .border {
+    border-width: 0.5px;
   }
 }
