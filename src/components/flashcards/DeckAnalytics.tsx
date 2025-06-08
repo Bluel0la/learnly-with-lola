@@ -1,12 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, Brain, TrendingUp, TrendingDown, Target, Loader2 } from 'lucide-react';
+import { BarChart3, Brain, TrendingUp, TrendingDown, Target, Loader2, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FlashcardCard, flashcardApi } from '@/services/flashcardApi';
+import DeckRankBadge from './DeckRankBadge';
+import { useDeckRank } from '@/hooks/useDeckRank';
 
 interface DeckAnalyticsProps {
   deckId: string;
@@ -34,15 +35,22 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
   const [cards, setCards] = useState<FlashcardCard[]>([]);
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGeneratingDrills, setIsGeneratingDrills] = useState(false);
+  const { getDeckRank, refreshDeckRank } = useDeckRank(deckId);
 
-  const loadDeckAnalytics = async () => {
+  const loadDeckAnalytics = async (showRefreshIndicator = false) => {
     try {
-      setIsLoading(true);
+      if (showRefreshIndicator) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+      
       const deckCards = await flashcardApi.getDeckCards(deckId);
       setCards(deckCards);
 
-      // Calculate statistics
+      // Calculate statistics with more accurate data
       const totalCards = deckCards.length;
       const studiedCards = deckCards.filter(card => card.is_studied).length;
       const cardsWithReviews = deckCards.filter(card => 
@@ -74,6 +82,10 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
         bookmarkedCards,
         unstudiedCards
       });
+
+      // Refresh deck rank to ensure it's up to date
+      await refreshDeckRank(deckId);
+      
     } catch (error) {
       console.error('Error loading deck analytics:', error);
       toast({
@@ -83,7 +95,16 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
       });
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    loadDeckAnalytics(true);
+    toast({
+      title: "Analytics refreshed",
+      description: "Latest data has been loaded"
+    });
   };
 
   const handleGenerateAdaptiveDrills = async (mode: 'wrong' | 'bookmark') => {
@@ -141,21 +162,73 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
 
   const completionRate = Math.round((stats.studiedCards / stats.totalCards) * 100);
   const needsImprovement = stats.averageAccuracy < 70 || stats.hardCards > stats.totalCards * 0.3;
+  const deckRank = getDeckRank(deckId);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" />
-            {deckTitle} Analytics
-          </h2>
-          <p className="text-muted-foreground">Performance insights and improvement suggestions</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              <BarChart3 className="h-6 w-6" />
+              {deckTitle} Analytics
+            </h2>
+            <p className="text-muted-foreground">Performance insights and improvement suggestions</p>
+          </div>
+          {deckRank.bestRank !== 'UNRANKED' && (
+            <DeckRankBadge 
+              rank={deckRank.bestRank} 
+              size="lg"
+              className="ml-4"
+            />
+          )}
         </div>
-        <Button onClick={onClose} variant="outline">
-          Back to Deck
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            size="sm"
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={onClose} variant="outline">
+            Back to Deck
+          </Button>
+        </div>
       </div>
+
+      {/* Current Rank Display */}
+      {deckRank.bestRank !== 'UNRANKED' && (
+        <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              Current Deck Rank
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Best Performance</p>
+                <div className="flex items-center gap-3">
+                  <DeckRankBadge rank={deckRank.bestRank} size="lg" />
+                  <div className="text-sm text-muted-foreground">
+                    Score: {deckRank.bestScore} points
+                  </div>
+                </div>
+              </div>
+              <div className="text-right text-sm text-muted-foreground">
+                {deckRank.lastUpdated && (
+                  <p>Last updated: {new Date(deckRank.lastUpdated).toLocaleDateString()}</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

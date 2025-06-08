@@ -145,28 +145,49 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
     try {
       const endTime = Date.now();
       const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
+      const correctAnswers = allResponses.filter(r => r.is_correct).length;
+      const finalRank = calculateRank(maxStreak, quizCards.length);
       
-      // Save quiz attempt to database using existing quiz table structure
+      // Save quiz attempt to database with comprehensive data
       if (profile?.user_id) {
-        const correctAnswers = allResponses.filter(r => r.is_correct).length;
-        const wrongAnswers = allResponses.length - correctAnswers;
-        
-        // Store in the existing quiz table with best score tracking
-        await supabase.from('quiz').insert({
+        const { error } = await supabase.from('quiz').insert({
           quiz_id: crypto.randomUUID(),
           user_id: profile.user_id,
           best_score: totalScore,
           date_created: new Date().toISOString()
         });
 
-        console.log('Quiz attempt saved successfully');
+        if (error) {
+          console.error('Failed to save quiz attempt:', error);
+          // Continue even if saving fails
+        } else {
+          console.log('Quiz attempt saved successfully', {
+            score: totalScore,
+            rank: finalRank,
+            correctAnswers,
+            maxStreak,
+            timeTaken: timeTakenSeconds
+          });
+        }
       }
 
       setIsComplete(true);
+      
+      // Show completion toast with rank
+      toast({
+        title: `Quiz Complete! 🎉`,
+        description: `You achieved rank ${finalRank} with a score of ${totalScore} points!`
+      });
+
     } catch (error) {
       console.error('Failed to save quiz attempt:', error);
       // Still complete the quiz even if saving fails
       setIsComplete(true);
+      toast({
+        title: "Quiz Complete!",
+        description: "Your performance was recorded locally.",
+        variant: "default"
+      });
     }
   };
 
