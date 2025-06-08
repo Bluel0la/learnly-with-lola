@@ -422,7 +422,7 @@ export type Database = {
             foreignKeyName: "quizzer_question_quiz_id_fkey"
             columns: ["quiz_id"]
             isOneToOne: false
-            referencedRelation: "quizzer"
+            referencedRelation: "quiz"
             referencedColumns: ["quiz_id"]
           },
           {
