@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from '@/hooks/use-toast';
-import { flashcardApi, FlashcardDeck } from '@/services/flashcardApi';
+import { flashcardApi, FlashcardDeck, FlashcardCard } from '@/services/flashcardApi';
 import { Link } from 'react-router-dom';
 import {
   Dialog,
@@ -15,25 +16,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { PlusCircle, Book, Bookmark, GraduationCap } from 'lucide-react';
+import { PlusCircle, Book, Bookmark, GraduationCap, ArrowLeft } from 'lucide-react';
 import FileUpload from '@/components/ui/FileUpload';
 import MultipleChoiceQuiz from '@/components/flashcards/MultipleChoiceQuiz';
 import PracticeMode from '@/components/flashcards/PracticeMode';
 import DeckAnalytics from '@/components/flashcards/DeckAnalytics';
 import DeckRankBadge from '@/components/flashcards/DeckRankBadge';
+import TiltedCard from '@/components/ui/TiltedCard';
 import { useDeckRank } from '@/hooks/useDeckRank';
 
 const FlashcardsPage = () => {
   const [decks, setDecks] = useState<FlashcardDeck[]>([]);
-  const [currentView, setCurrentView] = useState<'decks' | 'deck' | 'quiz' | 'practice' | 'analytics'>('decks');
+  const [currentView, setCurrentView] = useState<'decks' | 'deck' | 'quiz' | 'practice' | 'analytics' | 'filtered'>('decks');
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newDeckTitle, setNewDeckTitle] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [filteredCards, setFilteredCards] = useState<FlashcardCard[]>([]);
   const [filteredView, setFilteredView] = useState<'all' | 'bookmarked' | 'unstudied' | 'hard'>('all');
+  const [isLoadingFiltered, setIsLoadingFiltered] = useState(false);
 
   const { toast } = useToast();
   const { deckRanks, isLoading: ranksLoading, refreshDeckRank } = useDeckRank();
@@ -151,35 +154,37 @@ const FlashcardsPage = () => {
     }
   };
 
-  const handleFilterChange = (view: 'all' | 'bookmarked' | 'unstudied' | 'hard') => {
+  const handleFilterChange = async (view: 'bookmarked' | 'unstudied' | 'hard') => {
+    setIsLoadingFiltered(true);
     setFilteredView(view);
-    setIsFilterVisible(false);
-  };
-
-  const renderFilteredView = () => {
-    let apiUrl = '';
-    switch (filteredView) {
-      case 'bookmarked':
-        apiUrl = '/flashcard/cards/bookmarked';
-        break;
-      case 'unstudied':
-        apiUrl = '/flashcard/cards/unstudied';
-        break;
-      case 'hard':
-        apiUrl = '/flashcard/cards/hard';
-        break;
-      default:
-        apiUrl = `/flashcard/decks/${selectedDeck?.deck_id}/get-cards`;
-        break;
+    
+    try {
+      let cards: FlashcardCard[] = [];
+      
+      switch (view) {
+        case 'bookmarked':
+          cards = await flashcardApi.getBookmarkedCards();
+          break;
+        case 'unstudied':
+          cards = await flashcardApi.getUnstudiedCards();
+          break;
+        case 'hard':
+          cards = await flashcardApi.getHardCards();
+          break;
+      }
+      
+      setFilteredCards(cards);
+      setCurrentView('filtered');
+    } catch (error) {
+      console.error(`Failed to load ${view} cards:`, error);
+      toast({
+        title: "Error",
+        description: `Failed to load ${view} cards. Please try again.`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingFiltered(false);
     }
-
-    return (
-      <div className="text-center py-8">
-        <h3 className="text-xl font-semibold mb-2">Filtered View</h3>
-        <p className="text-gray-600 mb-4">Displaying {filteredView} cards.</p>
-        <Button onClick={handleBackToDecks}>Back to Decks</Button>
-      </div>
-    );
   };
 
   const handleQuizComplete = async () => {
@@ -189,6 +194,57 @@ const FlashcardsPage = () => {
     if (selectedDeck) {
       await refreshDeckRank(selectedDeck.deck_id);
     }
+  };
+
+  const renderFilteredView = () => {
+    if (isLoadingFiltered) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <div className="h-8 w-8 border-2 border-t-transparent border-primary rounded-full animate-spin"></div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button onClick={handleBackToDecks} variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Decks
+          </Button>
+          <h2 className="text-2xl font-bold capitalize">{filteredView} Cards</h2>
+        </div>
+        
+        {filteredCards.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-muted-foreground">No {filteredView} cards found.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredCards.map((card) => (
+              <Card key={card.card_id} className="h-full">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium line-clamp-2">
+                    {card.question}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground line-clamp-3 mb-2">
+                    {card.answer}
+                  </p>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Reviewed: {card.times_reviewed || 0}</span>
+                    {card.is_bookmarked && <Bookmark className="h-3 w-3 fill-current" />}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderDeckView = () => {
@@ -255,7 +311,7 @@ const FlashcardsPage = () => {
           <h1 className="text-3xl font-bold">My Flashcard Decks</h1>
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="default">
+              <Button>
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New Deck
               </Button>
             </DialogTrigger>
@@ -289,111 +345,141 @@ const FlashcardsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {decks.map((deck) => {
             const deckRank = deckRanks[deck.deck_id];
+            const hasRank = deckRank && deckRank.bestRank !== 'UNRANKED';
+            
             return (
-              <Card 
-                key={deck.deck_id} 
-                className="hover:shadow-lg transition-all duration-200 cursor-pointer group relative overflow-hidden"
-                onClick={() => handleDeckSelect(deck)}
+              <TiltedCard 
+                key={deck.deck_id}
+                containerHeight="280px"
+                scaleOnHover={1.05}
+                rotateAmplitude={5}
               >
-                {/* Rank Badge Overlay */}
-                {deckRank && deckRank.bestRank !== 'UNRANKED' && (
-                  <div className="absolute top-3 right-3 z-10">
-                    <DeckRankBadge 
-                      rank={deckRank.bestRank} 
-                      size="sm"
-                      className="shadow-lg"
-                    />
-                  </div>
-                )}
-                
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-serif group-hover:text-primary transition-colors pr-12">
-                    {deck.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Cards:</span>
-                      <span className="font-medium">{deck.card_count || 0}</span>
+                <Card 
+                  className="h-full hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden bg-gradient-to-br from-card to-card/90 border-2"
+                  onClick={() => handleDeckSelect(deck)}
+                >
+                  {/* Rank Badge Overlay */}
+                  {hasRank && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <DeckRankBadge 
+                        rank={deckRank.bestRank} 
+                        size="md"
+                        className="shadow-lg animate-pulse"
+                      />
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Created:</span>
-                      <span className="font-medium">
-                        {new Date(deck.date_created).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    {/* Rank Information */}
-                    {deckRank && deckRank.bestRank !== 'UNRANKED' && (
-                      <div className="mt-3 p-2 bg-primary/5 rounded-lg">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-gray-600">Best Score:</span>
-                          <span className="font-semibold text-primary">{deckRank.bestScore}</span>
+                  )}
+                  
+                  {/* Gaming-style background effect */}
+                  {hasRank && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50" />
+                  )}
+                  
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors pr-16 line-clamp-2">
+                      {deck.title}
+                    </CardTitle>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cards:</span>
+                          <span className="font-semibold">{deck.card_count || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Created:</span>
+                          <span className="font-medium text-xs">
+                            {new Date(deck.date_created).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      
+                      {/* Rank Information */}
+                      {hasRank && (
+                        <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
+                          <div className="text-center">
+                            <div className="text-lg font-bold text-primary">{deckRank.bestScore}</div>
+                            <div className="text-xs text-muted-foreground">Best Score</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Progress indicator */}
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Progress</span>
+                        <span>{hasRank ? `${Math.round((deckRank.bestScore / ((deck.card_count || 1) * 100)) * 100)}%` : '0%'}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-500"
+                          style={{ 
+                            width: hasRank ? `${Math.round((deckRank.bestScore / ((deck.card_count || 1) * 100)) * 100)}%` : '0%' 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TiltedCard>
             );
           })}
 
-          <Card className="border-dashed border-2 border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-            <CardContent className="flex items-center justify-center h-full p-6">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" className="text-gray-500 hover:text-primary">
-                    + Create New Deck
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Create New Deck</DialogTitle>
-                    <DialogDescription>
-                      Enter a title for your new flashcard deck.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="title" className="text-right">
-                        Title
-                      </Label>
-                      <Input
-                        id="title"
-                        value={newDeckTitle}
-                        onChange={(e) => setNewDeckTitle(e.target.value)}
-                        className="col-span-3"
-                      />
+          <TiltedCard containerHeight="280px" scaleOnHover={1.02}>
+            <Card className="h-full border-dashed border-2 border-muted bg-muted/20 hover:bg-muted/30 transition-colors cursor-pointer">
+              <CardContent className="flex items-center justify-center h-full p-6">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" className="text-muted-foreground hover:text-primary h-full w-full flex flex-col gap-2">
+                      <PlusCircle className="h-8 w-8" />
+                      <span>Create New Deck</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Deck</DialogTitle>
+                      <DialogDescription>
+                        Enter a title for your new flashcard deck.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="title" className="text-right">
+                          Title
+                        </Label>
+                        <Input
+                          id="title"
+                          value={newDeckTitle}
+                          onChange={(e) => setNewDeckTitle(e.target.value)}
+                          className="col-span-3"
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <Button onClick={handleCreateDeck} disabled={isCreating}>
-                    {isCreating ? "Creating..." : "Create Deck"}
-                  </Button>
-                </DialogContent>
-              </Dialog>
-            </CardContent>
-          </Card>
+                    <Button onClick={handleCreateDeck} disabled={isCreating}>
+                      {isCreating ? "Creating..." : "Create Deck"}
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+              </CardContent>
+            </Card>
+          </TiltedCard>
         </div>
 
-        <div className="md:flex md:items-center md:justify-between py-4">
-          <div className="text-sm text-gray-500">
-            Total Decks: {decks.length}
-          </div>
-          <div className="mt-2 md:mt-0">
-            <Button variant="outline" size="sm" onClick={() => setIsFilterVisible(!isFilterVisible)}>
-              {isFilterVisible ? 'Hide Filters' : 'Show Filters'}
-            </Button>
-          </div>
+        <div className="flex items-center justify-between py-4 text-sm text-muted-foreground">
+          <span>Total Decks: {decks.length}</span>
+          <span>🎯 Study smart, achieve more!</span>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="container max-w-5xl mx-auto py-12">
+    <div className="container max-w-6xl mx-auto py-12">
       {currentView === 'decks' && renderDecksView()}
       {currentView === 'deck' && renderDeckView()}
+      {currentView === 'filtered' && renderFilteredView()}
       {currentView === 'quiz' && selectedDeck && (
         <MultipleChoiceQuiz deckId={selectedDeck.deck_id} onComplete={handleQuizComplete} />
       )}
@@ -403,7 +489,6 @@ const FlashcardsPage = () => {
       {currentView === 'analytics' && selectedDeck && (
         <DeckAnalytics deckId={selectedDeck.deck_id} deckTitle={selectedDeck.title} onClose={handleBackToDecks} />
       )}
-      {isFilterVisible && renderFilteredView()}
     </div>
   );
 };

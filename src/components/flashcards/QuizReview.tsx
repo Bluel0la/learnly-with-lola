@@ -105,7 +105,7 @@ const QuizReview: React.FC<QuizReviewProps> = ({
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Results Summary */}
       <Card>
         <CardHeader className="text-center">
@@ -146,33 +146,45 @@ const QuizReview: React.FC<QuizReviewProps> = ({
         <CardHeader>
           <CardTitle>Detailed Results</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {detailedResults.map((detail, index) => (
-            <div key={detail.card_id} className="border-l-4 pl-4 py-2" 
-                 style={{ borderColor: detail.correct ? '#10b981' : '#ef4444' }}>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="font-medium">Question {index + 1}</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Your answer: <span className={detail.correct ? 'text-green-600' : 'text-red-600'}>
-                      {detail.your_answer}
-                    </span>
-                  </p>
-                  {!detail.correct && (
-                    <p className="text-sm text-green-600 mt-1">
-                      Correct answer: {detail.correct_answer}
-                    </p>
-                  )}
-                </div>
-                <div className="ml-2">
-                  {detail.correct ? 
-                    <CheckCircle className="h-5 w-5 text-green-600" /> : 
-                    <XCircle className="h-5 w-5 text-red-600" />
-                  }
+        <CardContent className="space-y-4">
+          <div className="max-h-96 overflow-y-auto space-y-3">
+            {detailedResults.map((detail, index) => (
+              <div key={detail.card_id} className="border-l-4 pl-4 py-3 rounded-r-lg bg-muted/20" 
+                   style={{ borderColor: detail.correct ? '#10b981' : '#ef4444' }}>
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">Question {index + 1}</p>
+                    </div>
+                    <div className="flex-shrink-0">
+                      {detail.correct ? 
+                        <CheckCircle className="h-5 w-5 text-green-600" /> : 
+                        <XCircle className="h-5 w-5 text-red-600" />
+                      }
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div>
+                      <span className="text-sm font-medium text-muted-foreground">Your answer: </span>
+                      <span className={`text-sm font-medium break-words ${detail.correct ? 'text-green-600' : 'text-red-600'}`}>
+                        {detail.your_answer}
+                      </span>
+                    </div>
+                    
+                    {!detail.correct && (
+                      <div>
+                        <span className="text-sm font-medium text-muted-foreground">Correct answer: </span>
+                        <span className="text-sm font-medium text-green-600 break-words">
+                          {detail.correct_answer}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </CardContent>
       </Card>
 

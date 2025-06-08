@@ -1,4 +1,3 @@
-
 import { API_BASE_URL, getAuthHeaders, getFileUploadHeaders } from './apiConfig';
 
 export interface FlashcardDeck {
@@ -455,10 +454,18 @@ export const flashcardApi = {
 
   submitQuiz: async (responses: QuizResponse[]): Promise<QuizResult> => {
     console.log('Submitting quiz responses:', responses);
+    
+    // Ensure we have the proper format for submission
+    const formattedResponses = responses.map(response => ({
+      card_id: response.card_id,
+      user_answer: response.user_answer,
+      is_correct: response.is_correct
+    }));
+    
     const response = await fetch(`${API_BASE_URL}/flashcard/quiz/submit`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(responses)
+      body: JSON.stringify(formattedResponses)
     });
     
     if (!response.ok) {
@@ -469,7 +476,21 @@ export const flashcardApi = {
     
     const result = await response.json();
     console.log('Quiz submitted successfully:', result);
-    return result;
+    
+    // Ensure the result has the proper structure
+    const formattedResult: QuizResult = {
+      total_questions: result.total_questions || responses.length,
+      correct: result.correct || responses.filter(r => r.is_correct).length,
+      wrong: result.wrong || responses.filter(r => !r.is_correct).length,
+      detailed_results: result.detailed_results || responses.map(response => ({
+        card_id: response.card_id,
+        your_answer: response.user_answer,
+        correct_answer: response.user_answer, // This should come from backend
+        correct: response.is_correct
+      }))
+    };
+    
+    return formattedResult;
   },
 
   // Adaptive drill generation methods
