@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ArrowRight, Target, Flame } from 'lucide-react';
 import { flashcardApi, QuizCard, QuizResponse, QuizResult } from '@/services/flashcardApi';
 import { useToast } from '@/hooks/use-toast';
 import QuizReview from './QuizReview';
@@ -189,23 +189,41 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
 
   if (!quizStarted) {
     return (
-      <Card className="max-w-2xl mx-auto">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Ready to Start Quiz?</CardTitle>
-          <p className="text-muted-foreground">
-            You'll have 30 seconds per question. {quizCards.length} questions total.
-          </p>
-        </CardHeader>
-        <CardContent className="text-center space-y-4">
-          <div className="text-4xl">🎯</div>
-          <Button onClick={startQuiz} size="lg" className="w-full">
-            Start Quiz
-          </Button>
-          <Button onClick={onComplete} variant="outline" className="w-full">
-            Back to Deck
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="max-w-md mx-auto shadow-xl border-0">
+          <CardHeader className="text-center pb-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Target className="h-8 w-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Ready to Quiz?
+            </CardTitle>
+            <p className="text-muted-foreground mt-2">
+              {quizCards.length} questions • 30 seconds each
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">{quizCards.length}</div>
+                <div className="text-sm text-muted-foreground">Questions</div>
+              </div>
+              <div className="p-3 bg-orange-50 rounded-lg">
+                <div className="text-2xl font-bold text-orange-600">30s</div>
+                <div className="text-sm text-muted-foreground">Per Question</div>
+              </div>
+            </div>
+            
+            <Button onClick={startQuiz} size="lg" className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
+              <Target className="mr-2 h-4 w-4" />
+              Start Quiz
+            </Button>
+            <Button onClick={onComplete} variant="outline" className="w-full">
+              Back to Deck
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -213,77 +231,93 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const progress = ((currentCardIndex + 1) / quizCards.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Progress and Stats */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium">
-            Question {currentCardIndex + 1} of {quizCards.length}
-          </span>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-sm">
-              <span>🔥 {streak}</span>
-              {maxStreak > 0 && <span className="text-muted-foreground">(best: {maxStreak})</span>}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-2xl mx-auto space-y-6">
+        {/* Header Stats */}
+        <div className="bg-white rounded-xl shadow-sm p-4">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-muted-foreground">Question</span>
+              <span className="text-lg font-bold text-primary">{currentCardIndex + 1}</span>
+              <span className="text-sm text-muted-foreground">of {quizCards.length}</span>
             </div>
-            <div className={`flex items-center gap-1 text-sm ${timeLeft <= 10 ? 'text-red-600' : ''}`}>
-              <Clock className="h-4 w-4" />
-              {timeLeft}s
+            <div className="flex items-center gap-4">
+              {streak > 0 && (
+                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 rounded-full">
+                  <Flame className="h-4 w-4 text-orange-500" />
+                  <span className="text-sm font-medium text-orange-700">{streak}</span>
+                </div>
+              )}
+              <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${
+                timeLeft <= 10 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                <Clock className="h-4 w-4" />
+                <span className="font-mono font-bold">{timeLeft}s</span>
+              </div>
             </div>
           </div>
+          <Progress value={progress} className="h-2" />
         </div>
-        <Progress value={progress} className="h-2" />
-      </div>
 
-      {/* Question Card */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentCardIndex}
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -50 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{currentCard.question}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {currentCard.options.map((option, index) => (
-                <motion.div
-                  key={index}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant={selectedAnswer === option ? "default" : "outline"}
-                    className="w-full text-left h-auto p-4 justify-start"
-                    onClick={() => setSelectedAnswer(option)}
+        {/* Question Card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentCardIndex}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card className="shadow-xl border-0">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl leading-relaxed">
+                  {currentCard.question}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {currentCard.options.map((option, index) => (
+                  <motion.div
+                    key={index}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
-                    <span className="mr-3 font-semibold">
-                      {String.fromCharCode(65 + index)}.
-                    </span>
-                    <span className="break-words">{option}</span>
-                  </Button>
-                </motion.div>
-              ))}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </AnimatePresence>
+                    <Button
+                      variant={selectedAnswer === option ? "default" : "outline"}
+                      className={`w-full text-left h-auto p-4 justify-start transition-all ${
+                        selectedAnswer === option 
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md' 
+                          : 'hover:bg-blue-50 hover:border-blue-200'
+                      }`}
+                      onClick={() => setSelectedAnswer(option)}
+                    >
+                      <div className={`mr-3 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
+                        selectedAnswer === option ? 'bg-white text-blue-600' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {String.fromCharCode(65 + index)}
+                      </div>
+                      <span className="break-words text-left">{option}</span>
+                    </Button>
+                  </motion.div>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </AnimatePresence>
 
-      {/* Submit Button */}
-      <div className="flex justify-between">
-        <Button onClick={onComplete} variant="outline">
-          Exit Quiz
-        </Button>
-        <Button
-          onClick={() => handleAnswerSubmit()}
-          disabled={!selectedAnswer}
-          className="flex items-center gap-2"
-        >
-          {currentCardIndex === quizCards.length - 1 ? 'Finish Quiz' : 'Next Question'}
-          <ArrowRight className="h-4 w-4" />
-        </Button>
+        {/* Action Buttons */}
+        <div className="flex justify-between">
+          <Button onClick={onComplete} variant="outline" className="px-6">
+            Exit Quiz
+          </Button>
+          <Button
+            onClick={() => handleAnswerSubmit()}
+            disabled={!selectedAnswer}
+            className="px-6 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50"
+          >
+            {currentCardIndex === quizCards.length - 1 ? 'Finish Quiz' : 'Next Question'}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
