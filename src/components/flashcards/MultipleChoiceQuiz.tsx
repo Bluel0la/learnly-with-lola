@@ -125,7 +125,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
     setRank(newRank);
     setMultiplier(newMultiplier);
 
-    // Wait for a moment to show the result, then transition
+    // Smooth transition - wait a moment then transition
     setTimeout(() => {
       if (currentCardIndex < quizCards.length - 1) {
         setIsTransitioning(true);
@@ -134,11 +134,11 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
           setSelectedAnswer(null);
           setHasAnswered(false);
           setIsTransitioning(false);
-        }, 300);
+        }, 400);
       } else {
         finishQuiz([...userResponses, response]);
       }
-    }, 1500);
+    }, 1200);
   };
 
   const finishQuiz = async (allResponses: QuizResponse[]) => {
@@ -146,22 +146,20 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
       const endTime = Date.now();
       const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
       
-      // Save quiz attempt to database
+      // Save quiz attempt to database using existing quiz table structure
       if (profile?.user_id) {
         const correctAnswers = allResponses.filter(r => r.is_correct).length;
         const wrongAnswers = allResponses.length - correctAnswers;
         
-        await supabase.from('quiz_attempts').insert({
+        // Store in the existing quiz table with best score tracking
+        await supabase.from('quiz').insert({
+          quiz_id: crypto.randomUUID(),
           user_id: profile.user_id,
-          deck_id: deckId,
-          total_questions: quizCards.length,
-          correct_answers: correctAnswers,
-          wrong_answers: wrongAnswers,
-          final_score: totalScore,
-          final_rank: rank,
-          max_streak: maxStreak,
-          time_taken_seconds: timeTakenSeconds
+          best_score: totalScore,
+          date_created: new Date().toISOString()
         });
+
+        console.log('Quiz attempt saved successfully');
       }
 
       setIsComplete(true);
@@ -239,13 +237,13 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
-            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
-      <Card className={`transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
+      <Card className={`transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-30 scale-95 blur-sm' : 'opacity-100 scale-100'}`}>
         <CardHeader>
           <CardTitle className="text-lg">{currentCard.question}</CardTitle>
         </CardHeader>
