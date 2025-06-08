@@ -218,7 +218,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const progress = ((currentCardIndex + 1) / quizCards.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-3xl mx-auto p-4">
       <ScoreMeter 
         streak={streak} 
         rank={rank} 
@@ -226,28 +226,28 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
         totalQuestions={quizCards.length}
       />
       
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm text-gray-600">
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-sm text-gray-600 font-medium">
             Question {currentCardIndex + 1} of {quizCards.length}
           </span>
-          <span className="text-sm font-medium text-blue-600">
+          <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
             Score: {totalScore}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-3">
           <div 
-            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+            className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       <Card className={`transition-all duration-500 ease-in-out ${isTransitioning ? 'opacity-30 scale-95 blur-sm' : 'opacity-100 scale-100'}`}>
-        <CardHeader>
-          <CardTitle className="text-lg">{currentCard.question}</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl leading-relaxed">{currentCard.question}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           {currentCard.options.map((option, index) => {
             const isSelected = selectedAnswer === option;
             const isCorrect = hasAnswered && option === currentCard.options[currentCard.correct_answer_index];
@@ -257,21 +257,24 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
               <Button
                 key={index}
                 variant={isSelected ? "default" : "outline"}
-                className={`w-full text-left justify-start h-auto p-4 transition-all duration-300 ${
+                className={`w-full text-left justify-start min-h-[60px] p-4 whitespace-normal break-words transition-all duration-300 ${
                   hasAnswered
                     ? isCorrect
                       ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
                       : isWrong
                       ? 'bg-red-500 hover:bg-red-500 text-white border-red-500'
-                      : 'opacity-50'
+                      : 'opacity-60 bg-gray-100 text-gray-600'
                     : isSelected
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                    : 'hover:bg-gray-50'
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white border-blue-500'
+                    : 'hover:bg-gray-50 hover:border-gray-300'
                 }`}
                 onClick={() => handleAnswerSelect(option)}
                 disabled={hasAnswered}
+                style={{ height: 'auto' }}
               >
-                {option}
+                <span className="text-left leading-relaxed">
+                  {option}
+                </span>
               </Button>
             );
           })}
@@ -280,7 +283,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
             <Button 
               onClick={handleSubmitAnswer}
               disabled={!selectedAnswer}
-              className="w-full mt-4"
+              className="w-full mt-6 h-12 text-base font-semibold"
             >
               Submit Answer
             </Button>
