@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, Brain, TrendingUp, TrendingDown, Target, Loader2, RefreshCw } from 'lucide-react';
+import { BarChart3, Brain, TrendingUp, TrendingDown, Target, Loader2, RefreshCw, Trophy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FlashcardCard, flashcardApi } from '@/services/flashcardApi';
 import DeckRankBadge from './DeckRankBadge';

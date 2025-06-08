@@ -255,7 +255,7 @@ const FlashcardsPage = () => {
           <h1 className="text-3xl font-bold">My Flashcard Decks</h1>
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="primary">
+              <Button variant="default">
                 <PlusCircle className="mr-2 h-4 w-4" /> Create New Deck
               </Button>
             </DialogTrigger>
