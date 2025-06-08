@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +32,27 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const [startTime] = useState(Date.now());
 
   const { toast } = useToast();
-  const { profile } = useUserProfile();
+  const { profile, isLoading: profileLoading, error: profileError } = useUserProfile();
+
+  // Show loading state while profile is loading
+  if (profileLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-lg">Loading user profile...</div>
+      </div>
+    );
+  }
+
+  // Show error if profile failed to load
+  if (profileError) {
+    return (
+      <div className="text-center py-8">
+        <h3 className="text-xl font-semibold mb-2 text-red-600">Authentication Error</h3>
+        <p className="text-gray-600 mb-4">Please log in to access the quiz.</p>
+        <Button onClick={onComplete}>Back to Deck</Button>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const startQuiz = async () => {
@@ -53,8 +72,11 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
       }
     };
 
-    startQuiz();
-  }, [deckId, toast]);
+    // Only start quiz if we have a valid profile
+    if (profile?.user_id) {
+      startQuiz();
+    }
+  }, [deckId, toast, profile]);
 
   const calculateRank = (currentStreak: number, totalQuestions: number): string => {
     const rankThresholds = {
@@ -146,25 +168,46 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
       const endTime = Date.now();
       const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
       
-      // Save quiz attempt to database using existing quiz table structure
+      // Save quiz attempt to database only if user is authenticated
       if (profile?.user_id) {
         const correctAnswers = allResponses.filter(r => r.is_correct).length;
         const wrongAnswers = allResponses.length - correctAnswers;
         
         // Store in the existing quiz table with best score tracking
-        await supabase.from('quiz').insert({
+        const { error: insertError } = await supabase.from('quiz').insert({
           quiz_id: crypto.randomUUID(),
           user_id: profile.user_id,
           best_score: totalScore,
           date_created: new Date().toISOString()
         });
 
-        console.log('Quiz attempt saved successfully');
+        if (insertError) {
+          console.error('Error saving quiz attempt:', insertError);
+          toast({
+            title: "Warning",
+            description: "Quiz completed but results couldn't be saved.",
+            variant: "default"
+          });
+        } else {
+          console.log('Quiz attempt saved successfully');
+        }
+      } else {
+        console.log('Quiz completed without saving - user not authenticated');
+        toast({
+          title: "Quiz Completed",
+          description: "Results not saved - please log in to track your progress.",
+          variant: "default"
+        });
       }
 
       setIsComplete(true);
     } catch (error) {
       console.error('Failed to save quiz attempt:', error);
+      toast({
+        title: "Warning", 
+        description: "Quiz completed but results couldn't be saved.",
+        variant: "default"
+      });
       // Still complete the quiz even if saving fails
       setIsComplete(true);
     }
