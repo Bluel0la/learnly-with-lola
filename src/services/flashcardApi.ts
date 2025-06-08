@@ -1,3 +1,4 @@
+
 import { API_BASE_URL, getAuthHeaders, getFileUploadHeaders } from './apiConfig';
 
 export interface FlashcardDeck {
@@ -332,6 +333,17 @@ export const flashcardApi = {
     
     if (!response.ok) {
       throw new Error('Failed to unbookmark card');
+    }
+  },
+
+  toggleBookmark: async (cardId: string): Promise<void> => {
+    const response = await fetch(`${API_BASE_URL}/flashcard/cards/${cardId}/toggle-bookmark`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to toggle bookmark');
     }
   },
 
