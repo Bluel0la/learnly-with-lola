@@ -4,6 +4,7 @@ import { authApi } from '@/services/api';
 import { secureTokenStorage } from '@/services/secureTokenStorage';
 
 interface UserProfile {
+  user_id: string;
   first_name: string;
   last_name: string;
   email: string;
@@ -23,7 +24,26 @@ export const useUserProfile = () => {
 
       try {
         const profileData = await authApi.getProfile();
-        setProfile(profileData);
+        
+        // Get user ID from token payload
+        const token = secureTokenStorage.getToken();
+        let userId = '';
+        
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userId = payload.sub || payload.user_id || '';
+          } catch (e) {
+            console.error('Failed to parse token:', e);
+          }
+        }
+        
+        const profileWithId = {
+          ...profileData,
+          user_id: userId
+        };
+        
+        setProfile(profileWithId);
         setError(null);
       } catch (err) {
         console.error('Failed to fetch user profile:', err);
