@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -161,9 +160,9 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
         });
       }
 
-      // Submit quiz to API for analytics
+      // Submit quiz to API for analytics - fix: only pass one argument
       try {
-        await flashcardApi.submitQuiz(deckId, allResponses);
+        await flashcardApi.submitQuiz(allResponses);
       } catch (error) {
         console.error('Failed to submit quiz to API:', error);
       }
