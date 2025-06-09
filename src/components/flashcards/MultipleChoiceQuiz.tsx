@@ -2,12 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle, XCircle, Clock, ArrowRight, Target, Flame } from 'lucide-react';
-import { flashcardApi, QuizCard, QuizResponse, QuizResult } from '@/services/flashcardApi';
 import { useToast } from '@/hooks/use-toast';
+import { flashcardApi, QuizCard, QuizResponse } from '@/services/api';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { supabase } from '@/integrations/supabase/client';
+import ScoreMeter from './ScoreMeter';
 import QuizReview from './QuizReview';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface MultipleChoiceQuizProps {
   deckId: string;
@@ -17,212 +17,201 @@ interface MultipleChoiceQuizProps {
 const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onComplete }) => {
   const [quizCards, setQuizCards] = useState<QuizCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [userResponses, setUserResponses] = useState<QuizResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [quizCompleted, setQuizCompleted] = useState(false);
-  const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [hasAnswered, setHasAnswered] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // Score tracking
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
-  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [rank, setRank] = useState('E');
+  const [multiplier, setMultiplier] = useState(1);
+  const [totalScore, setTotalScore] = useState(0);
+  const [startTime] = useState(Date.now());
 
   const { toast } = useToast();
+  const { profile } = useUserProfile();
 
-  // Timer effect
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isTimerActive && timeLeft > 0 && !quizCompleted) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isTimerActive) {
-      handleTimeUp();
-    }
-    return () => clearInterval(interval);
-  }, [isTimerActive, timeLeft, quizCompleted]);
-
-  const handleTimeUp = () => {
-    if (currentCardIndex < quizCards.length) {
-      handleAnswerSubmit(true); // Auto-submit as wrong when time runs out
-    }
-  };
-
-  const loadQuiz = async () => {
-    try {
-      setIsLoading(true);
-      const quizData = await flashcardApi.startQuiz(deckId, 10);
-      setQuizCards(quizData.cards);
-      
-      if (quizData.cards.length === 0) {
+    const startQuiz = async () => {
+      try {
+        setIsLoading(true);
+        const quizData = await flashcardApi.startQuiz(deckId, 10);
+        setQuizCards(quizData.cards);
+      } catch (error) {
+        console.error('Failed to start quiz:', error);
         toast({
-          title: "No Cards Available",
-          description: "This deck doesn't have enough cards for a quiz.",
+          title: "Error",
+          description: "Failed to start quiz. Please try again.",
           variant: "destructive"
         });
-        if (onComplete) onComplete();
-        return;
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to load quiz:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load quiz. Please try again.",
-        variant: "destructive"
-      });
-      if (onComplete) onComplete();
-    } finally {
-      setIsLoading(false);
+    };
+
+    startQuiz();
+  }, [deckId, toast]);
+
+  const calculateRank = (currentStreak: number, totalQuestions: number): string => {
+    const rankThresholds = {
+      'S+': Math.max(8, Math.floor(totalQuestions * 0.90)),
+      'S': Math.max(7, Math.floor(totalQuestions * 0.75)),
+      'A': Math.max(6, Math.floor(totalQuestions * 0.60)),
+      'B': Math.max(5, Math.floor(totalQuestions * 0.45)),
+      'C': Math.max(4, Math.floor(totalQuestions * 0.35)),
+      'D': Math.max(3, Math.floor(totalQuestions * 0.25)),
+      'E': Math.max(2, Math.floor(totalQuestions * 0.15))
+    };
+
+    for (const [rankName, threshold] of Object.entries(rankThresholds)) {
+      if (currentStreak >= threshold) {
+        return rankName;
+      }
     }
+    return 'E';
   };
 
-  const startQuiz = () => {
-    setQuizStarted(true);
-    setIsTimerActive(true);
-    setStartTime(new Date());
-    setTimeLeft(30);
+  const calculateMultiplier = (currentStreak: number): number => {
+    return Math.min(1 + Math.floor(currentStreak / 2), 6);
   };
 
-  const handleAnswerSubmit = (isTimeUp = false) => {
-    if (!quizStarted || quizCompleted) return;
+  const handleAnswerSelect = (answer: string) => {
+    if (hasAnswered) return;
+    setSelectedAnswer(answer);
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!selectedAnswer || hasAnswered) return;
 
     const currentCard = quizCards[currentCardIndex];
-    const isCorrect = !isTimeUp && selectedAnswer === currentCard.options[currentCard.correct_answer_index];
-    
-    // Update streak
-    if (isCorrect) {
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-      setMaxStreak(Math.max(maxStreak, newStreak));
-    } else {
-      setStreak(0);
-    }
+    const correctAnswer = currentCard.options[currentCard.correct_answer_index];
+    const isCorrect = selectedAnswer === correctAnswer;
+
+    setHasAnswered(true);
 
     const response: QuizResponse = {
       card_id: currentCard.card_id,
-      user_answer: isTimeUp ? 'Time Up' : selectedAnswer,
+      user_answer: selectedAnswer,
       is_correct: isCorrect
     };
 
-    const newResponses = [...userResponses, response];
-    setUserResponses(newResponses);
+    setUserResponses(prev => [...prev, response]);
 
-    if (currentCardIndex < quizCards.length - 1) {
-      setCurrentCardIndex(currentCardIndex + 1);
-      setSelectedAnswer('');
-      setTimeLeft(30);
+    // Update score tracking
+    let newStreak = streak;
+    let newRank = rank;
+    let newMultiplier = multiplier;
+
+    if (isCorrect) {
+      newStreak = streak + 1;
+      setMaxStreak(prev => Math.max(prev, newStreak));
+      
+      newRank = calculateRank(newStreak, quizCards.length);
+      newMultiplier = calculateMultiplier(newStreak);
+      
+      const points = 100 * newMultiplier;
+      setTotalScore(prev => prev + points);
     } else {
-      completeQuiz(newResponses);
+      newStreak = 0;
+      newRank = calculateRank(newStreak, quizCards.length);
+      newMultiplier = 1;
     }
+
+    setStreak(newStreak);
+    setRank(newRank);
+    setMultiplier(newMultiplier);
+
+    // Wait for a moment to show the result, then transition
+    setTimeout(() => {
+      if (currentCardIndex < quizCards.length - 1) {
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setCurrentCardIndex(prev => prev + 1);
+          setSelectedAnswer(null);
+          setHasAnswered(false);
+          setIsTransitioning(false);
+        }, 300);
+      } else {
+        finishQuiz([...userResponses, response]);
+      }
+    }, 1500);
   };
 
-  const completeQuiz = async (responses: QuizResponse[]) => {
+  const finishQuiz = async (allResponses: QuizResponse[]) => {
     try {
-      setIsTimerActive(false);
-      setQuizCompleted(true);
+      const endTime = Date.now();
+      const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
       
-      console.log('Submitting quiz responses:', responses);
-      
-      // Submit to backend with proper format
-      const result = await flashcardApi.submitQuiz(responses);
-      console.log('Quiz result received:', result);
-      
-      setQuizResult(result);
-      
-      const endTime = new Date();
-      const timeSpent = startTime ? Math.floor((endTime.getTime() - startTime.getTime()) / 1000) : 0;
-      
-      toast({
-        title: "Quiz Complete!",
-        description: `You scored ${result.correct}/${result.total_questions} (${Math.round((result.correct / result.total_questions) * 100)}%)`,
-      });
-      
+      // Save quiz attempt to database
+      if (profile?.user_id) {
+        const correctAnswers = allResponses.filter(r => r.is_correct).length;
+        const wrongAnswers = allResponses.length - correctAnswers;
+        
+        await supabase.from('quiz_attempts').insert({
+          user_id: profile.user_id,
+          deck_id: deckId,
+          total_questions: quizCards.length,
+          correct_answers: correctAnswers,
+          wrong_answers: wrongAnswers,
+          final_score: totalScore,
+          final_rank: rank,
+          max_streak: maxStreak,
+          time_taken_seconds: timeTakenSeconds
+        });
+      }
+
+      setIsComplete(true);
     } catch (error) {
-      console.error('Failed to submit quiz:', error);
-      toast({
-        title: "Error",
-        description: "Failed to submit quiz results.",
-        variant: "destructive"
-      });
+      console.error('Failed to save quiz attempt:', error);
+      // Still complete the quiz even if saving fails
+      setIsComplete(true);
     }
   };
 
-  const restartQuiz = () => {
+  const handleRestart = () => {
     setCurrentCardIndex(0);
-    setSelectedAnswer('');
     setUserResponses([]);
-    setQuizStarted(false);
-    setQuizCompleted(false);
-    setQuizResult(null);
-    setTimeLeft(30);
-    setIsTimerActive(false);
+    setSelectedAnswer(null);
+    setHasAnswered(false);
+    setIsComplete(false);
     setStreak(0);
     setMaxStreak(0);
-    setStartTime(null);
-    loadQuiz();
+    setRank('E');
+    setMultiplier(1);
+    setTotalScore(0);
+    setIsTransitioning(false);
   };
-
-  useEffect(() => {
-    loadQuiz();
-  }, [deckId]);
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="h-8 w-8 border-2 border-t-transparent border-primary rounded-full animate-spin"></div>
+        <div className="text-lg">Loading quiz...</div>
       </div>
     );
   }
 
-  if (quizCompleted && quizResult) {
+  if (isComplete) {
     return (
       <QuizReview
-        result={quizResult}
         deckId={deckId}
-        onRestart={restartQuiz}
+        quizCards={quizCards}
+        userResponses={userResponses}
+        onRestart={handleRestart}
         onExit={onComplete}
       />
     );
   }
 
-  if (!quizStarted) {
+  if (quizCards.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="max-w-md mx-auto shadow-xl border-0">
-          <CardHeader className="text-center pb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Target className="h-8 w-8 text-white" />
-            </div>
-            <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Ready to Quiz?
-            </CardTitle>
-            <p className="text-muted-foreground mt-2">
-              {quizCards.length} questions • 30 seconds each
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">{quizCards.length}</div>
-                <div className="text-sm text-muted-foreground">Questions</div>
-              </div>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">30s</div>
-                <div className="text-sm text-muted-foreground">Per Question</div>
-              </div>
-            </div>
-            
-            <Button onClick={startQuiz} size="lg" className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700">
-              <Target className="mr-2 h-4 w-4" />
-              Start Quiz
-            </Button>
-            <Button onClick={onComplete} variant="outline" className="w-full">
-              Back to Deck
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="text-center py-8">
+        <h3 className="text-xl font-semibold mb-2">No Quiz Available</h3>
+        <p className="text-gray-600 mb-4">This deck doesn't have enough cards for a quiz.</p>
+        <Button onClick={onComplete}>Back to Deck</Button>
       </div>
     );
   }
@@ -231,94 +220,75 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const progress = ((currentCardIndex + 1) / quizCards.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Header Stats */}
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted-foreground">Question</span>
-              <span className="text-lg font-bold text-primary">{currentCardIndex + 1}</span>
-              <span className="text-sm text-muted-foreground">of {quizCards.length}</span>
-            </div>
-            <div className="flex items-center gap-4">
-              {streak > 0 && (
-                <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 rounded-full">
-                  <Flame className="h-4 w-4 text-orange-500" />
-                  <span className="text-sm font-medium text-orange-700">{streak}</span>
-                </div>
-              )}
-              <div className={`flex items-center gap-1 px-3 py-1 rounded-full ${
-                timeLeft <= 10 ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-              }`}>
-                <Clock className="h-4 w-4" />
-                <span className="font-mono font-bold">{timeLeft}s</span>
-              </div>
-            </div>
-          </div>
-          <Progress value={progress} className="h-2" />
+    <div className="max-w-2xl mx-auto">
+      <ScoreMeter 
+        streak={streak} 
+        rank={rank} 
+        multiplier={multiplier} 
+        totalQuestions={quizCards.length}
+      />
+      
+      <div className="mb-4">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm text-gray-600">
+            Question {currentCardIndex + 1} of {quizCards.length}
+          </span>
+          <span className="text-sm font-medium text-blue-600">
+            Score: {totalScore}
+          </span>
         </div>
-
-        {/* Question Card */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentCardIndex}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-          >
-            <Card className="shadow-xl border-0">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl leading-relaxed">
-                  {currentCard.question}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {currentCard.options.map((option, index) => (
-                  <motion.div
-                    key={index}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                  >
-                    <Button
-                      variant={selectedAnswer === option ? "default" : "outline"}
-                      className={`w-full text-left h-auto p-4 justify-start transition-all ${
-                        selectedAnswer === option 
-                          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md' 
-                          : 'hover:bg-blue-50 hover:border-blue-200'
-                      }`}
-                      onClick={() => setSelectedAnswer(option)}
-                    >
-                      <div className={`mr-3 w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold ${
-                        selectedAnswer === option ? 'bg-white text-blue-600' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {String.fromCharCode(65 + index)}
-                      </div>
-                      <span className="break-words text-left">{option}</span>
-                    </Button>
-                  </motion.div>
-                ))}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Action Buttons */}
-        <div className="flex justify-between">
-          <Button onClick={onComplete} variant="outline" className="px-6">
-            Exit Quiz
-          </Button>
-          <Button
-            onClick={() => handleAnswerSubmit()}
-            disabled={!selectedAnswer}
-            className="px-6 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:opacity-50"
-          >
-            {currentCardIndex === quizCards.length - 1 ? 'Finish Quiz' : 'Next Question'}
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+        <div className="w-full bg-gray-200 rounded-full h-2">
+          <div 
+            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </div>
+
+      <Card className={`transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
+        <CardHeader>
+          <CardTitle className="text-lg">{currentCard.question}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {currentCard.options.map((option, index) => {
+            const isSelected = selectedAnswer === option;
+            const isCorrect = hasAnswered && option === currentCard.options[currentCard.correct_answer_index];
+            const isWrong = hasAnswered && isSelected && !isCorrect;
+            
+            return (
+              <Button
+                key={index}
+                variant={isSelected ? "default" : "outline"}
+                className={`w-full text-left justify-start h-auto p-4 transition-all duration-300 ${
+                  hasAnswered
+                    ? isCorrect
+                      ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
+                      : isWrong
+                      ? 'bg-red-500 hover:bg-red-500 text-white border-red-500'
+                      : 'opacity-50'
+                    : isSelected
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'hover:bg-gray-50'
+                }`}
+                onClick={() => handleAnswerSelect(option)}
+                disabled={hasAnswered}
+              >
+                {option}
+              </Button>
+            );
+          })}
+
+          {!hasAnswered && (
+            <Button 
+              onClick={handleSubmitAnswer}
+              disabled={!selectedAnswer}
+              className="w-full mt-4"
+            >
+              Submit Answer
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

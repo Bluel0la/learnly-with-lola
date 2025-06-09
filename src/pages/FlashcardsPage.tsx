@@ -3,54 +3,43 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from "@/components/ui/textarea"
-import { useToast } from '@/hooks/use-toast';
-import { flashcardApi, FlashcardDeck, FlashcardCard } from '@/services/flashcardApi';
-import { Link } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { PlusCircle, Book, Bookmark, GraduationCap, ArrowLeft } from 'lucide-react';
-import FileUpload from '@/components/ui/FileUpload';
-import MultipleChoiceQuiz from '@/components/flashcards/MultipleChoiceQuiz';
-import PracticeMode from '@/components/flashcards/PracticeMode';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, BookOpen, Play, Upload, Sparkles, Edit, Clock, BarChart3, Brain, MoreVertical } from 'lucide-react';
+import { FlashcardDeck, flashcardApi } from '@/services/flashcardApi';
+import FlashcardPractice from '@/components/flashcards/FlashcardPractice';
+import FlashcardQuiz from '@/components/flashcards/FlashcardQuiz';
+import ManualCardDialog from '@/components/flashcards/ManualCardDialog';
 import DeckAnalytics from '@/components/flashcards/DeckAnalytics';
-import DeckRankBadge from '@/components/flashcards/DeckRankBadge';
 import TiltedCard from '@/components/ui/TiltedCard';
-import { useDeckRank } from '@/hooks/useDeckRank';
 
 const FlashcardsPage = () => {
-  const [decks, setDecks] = useState<FlashcardDeck[]>([]);
-  const [currentView, setCurrentView] = useState<'decks' | 'deck' | 'quiz' | 'practice' | 'analytics' | 'filtered'>('decks');
-  const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newDeckTitle, setNewDeckTitle] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filteredCards, setFilteredCards] = useState<FlashcardCard[]>([]);
-  const [filteredView, setFilteredView] = useState<'all' | 'bookmarked' | 'unstudied' | 'hard'>('all');
-  const [isLoadingFiltered, setIsLoadingFiltered] = useState(false);
-
   const { toast } = useToast();
-  const { deckRanks, isLoading: ranksLoading, refreshDeckRank } = useDeckRank();
+  const [decks, setDecks] = useState<FlashcardDeck[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentView, setCurrentView] = useState<'decks' | 'practice' | 'quiz' | 'analytics'>('decks');
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [selectedDeckTitle, setSelectedDeckTitle] = useState<string>('');
+  const [newDeckTitle, setNewDeckTitle] = useState('');
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const loadDecks = async () => {
     try {
       setIsLoading(true);
-      const fetchedDecks = await flashcardApi.getDecks();
-      setDecks(fetchedDecks);
+      const userDecks = await flashcardApi.getDecks();
+      setDecks(userDecks);
     } catch (error) {
-      console.error('Failed to load decks:', error);
+      console.error('Error loading decks:', error);
       toast({
         title: "Error",
-        description: "Failed to load decks. Please try again.",
+        description: "Failed to load flashcard decks",
         variant: "destructive"
       });
     } finally {
@@ -58,438 +47,427 @@ const FlashcardsPage = () => {
     }
   };
 
-  useEffect(() => {
-    loadDecks();
-  }, []);
-
   const handleCreateDeck = async () => {
     if (!newDeckTitle.trim()) {
       toast({
         title: "Error",
-        description: "Deck title cannot be empty.",
+        description: "Please enter a deck title",
         variant: "destructive"
       });
       return;
     }
 
-    setIsCreating(true);
     try {
+      console.log('Creating deck with title:', newDeckTitle);
       const newDeck = await flashcardApi.createDeck(newDeckTitle);
-      setDecks(prevDecks => [...prevDecks, newDeck]);
-      setNewDeckTitle('');
+      console.log('Deck created successfully:', newDeck);
       toast({
-        title: "Success",
-        description: "Deck created successfully.",
+        title: "Success! 🎉",
+        description: `Deck "${newDeck.title}" created successfully`
       });
+      setNewDeckTitle('');
+      setIsCreateDialogOpen(false);
+      loadDecks();
     } catch (error) {
-      console.error('Failed to create deck:', error);
+      console.error('Error creating deck:', error);
       toast({
         title: "Error",
-        description: "Failed to create deck. Please try again.",
+        description: "Failed to create deck",
         variant: "destructive"
       });
-    } finally {
-      setIsCreating(false);
     }
   };
 
-  const handleDeckSelect = (deck: FlashcardDeck) => {
-    setSelectedDeck(deck);
-    setCurrentView('deck');
+  const handleStartPractice = (deckId: string) => {
+    setSelectedDeckId(deckId);
+    setCurrentView('practice');
+  };
+
+  const handleStartQuiz = (deckId: string) => {
+    setSelectedDeckId(deckId);
+    setCurrentView('quiz');
+  };
+
+  const handleViewAnalytics = (deckId: string, deckTitle: string) => {
+    setSelectedDeckId(deckId);
+    setSelectedDeckTitle(deckTitle);
+    setCurrentView('analytics');
   };
 
   const handleBackToDecks = () => {
-    setSelectedDeck(null);
     setCurrentView('decks');
-    loadDecks(); // Refresh decks when returning to the decks view
+    setSelectedDeckId(null);
+    setSelectedDeckTitle('');
+    loadDecks(); // Refresh decks to get updated card counts
   };
 
-  const handleStartQuiz = () => {
-    if (selectedDeck) {
-      setCurrentView('quiz');
-    }
-  };
+  useEffect(() => {
+    loadDecks();
+  }, []);
 
-  const handleStartPractice = () => {
-    if (selectedDeck) {
-      setCurrentView('practice');
-    }
-  };
-
-  const handleShowAnalytics = () => {
-    if (selectedDeck) {
-      setCurrentView('analytics');
-    }
-  };
-
-  const handleFileUpload = async (file: File | null) => {
-    if (!file || !selectedDeck) {
-      toast({
-        title: "Error",
-        description: "No file selected.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setSelectedFile(file);
-    setIsGenerating(true);
-
-    try {
-      await flashcardApi.generateFlashcards(selectedDeck.deck_id, file);
-      toast({
-        title: "Success",
-        description: "Flashcards generated successfully.",
-      });
-      loadDecks(); // Refresh decks after generating flashcards
-    } catch (error) {
-      console.error('Failed to generate flashcards:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate flashcards. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleFilterChange = async (view: 'bookmarked' | 'unstudied' | 'hard') => {
-    setIsLoadingFiltered(true);
-    setFilteredView(view);
-    
-    try {
-      let cards: FlashcardCard[] = [];
-      
-      switch (view) {
-        case 'bookmarked':
-          cards = await flashcardApi.getBookmarkedCards();
-          break;
-        case 'unstudied':
-          cards = await flashcardApi.getUnstudiedCards();
-          break;
-        case 'hard':
-          cards = await flashcardApi.getHardCards();
-          break;
-      }
-      
-      setFilteredCards(cards);
-      setCurrentView('filtered');
-    } catch (error) {
-      console.error(`Failed to load ${view} cards:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to load ${view} cards. Please try again.`,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoadingFiltered(false);
-    }
-  };
-
-  const handleQuizComplete = async () => {
-    setCurrentView('decks');
-    await loadDecks();
-    // Refresh ranks after quiz completion
-    if (selectedDeck) {
-      await refreshDeckRank(selectedDeck.deck_id);
-    }
-  };
-
-  const renderFilteredView = () => {
-    if (isLoadingFiltered) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="h-8 w-8 border-2 border-t-transparent border-primary rounded-full animate-spin"></div>
-        </div>
-      );
-    }
-
+  if (currentView === 'practice' && selectedDeckId) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button onClick={handleBackToDecks} variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Decks
+      <div className="container px-3 md:px-4 py-4 md:py-6 lg:py-8 h-full">
+        <div className="mb-3 md:mb-4">
+          <Button onClick={handleBackToDecks} variant="outline" className="hover:scale-105 transition-transform text-sm">
+            ← Back to Decks
           </Button>
-          <h2 className="text-2xl font-bold capitalize">{filteredView} Cards</h2>
         </div>
-        
-        {filteredCards.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-8">
-              <p className="text-muted-foreground">No {filteredView} cards found.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCards.map((card) => (
-              <Card key={card.card_id} className="h-full">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium line-clamp-2">
-                    {card.question}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground line-clamp-3 mb-2">
-                    {card.answer}
-                  </p>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Reviewed: {card.times_reviewed || 0}</span>
-                    {card.is_bookmarked && <Bookmark className="h-3 w-3 fill-current" />}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        <FlashcardPractice
+          deckId={selectedDeckId}
+          onComplete={handleBackToDecks}
+        />
       </div>
     );
-  };
+  }
 
-  const renderDeckView = () => {
-    if (!selectedDeck) {
-      return <div className="text-center">No deck selected.</div>;
-    }
-
+  if (currentView === 'quiz' && selectedDeckId) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">{selectedDeck.title}</h2>
-            <p className="text-muted-foreground">Manage and study your flashcards</p>
-          </div>
-          <div className="space-x-2">
-            <Button onClick={handleStartPractice}><Book className="mr-2 h-4 w-4" /> Practice</Button>
-            <Button onClick={handleStartQuiz}><GraduationCap className="mr-2 h-4 w-4" /> Start Quiz</Button>
-            <Button onClick={handleShowAnalytics} variant="secondary">Analytics</Button>
-            <Button onClick={handleBackToDecks} variant="outline">Back to Decks</Button>
-          </div>
+      <div className="container px-3 md:px-4 py-4 md:py-6 lg:py-8 h-full">
+        <div className="mb-3 md:mb-4">
+          <Button onClick={handleBackToDecks} variant="outline" className="hover:scale-105 transition-transform text-sm">
+            ← Back to Decks
+          </Button>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Add Flashcards</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FileUpload onFileSelected={handleFileUpload} isLoading={isGenerating} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="flex gap-4">
-            <Button onClick={() => handleFilterChange('bookmarked')} variant="outline">
-              <Bookmark className="mr-2 h-4 w-4" /> Bookmarked
-            </Button>
-            <Button onClick={() => handleFilterChange('unstudied')} variant="outline">
-              <Book className="mr-2 h-4 w-4" /> Unstudied
-            </Button>
-            <Button onClick={() => handleFilterChange('hard')} variant="outline">
-              <GraduationCap className="mr-2 h-4 w-4" /> Hard
-            </Button>
-          </CardContent>
-        </Card>
+        <FlashcardQuiz
+          deckId={selectedDeckId}
+          onComplete={handleBackToDecks}
+        />
       </div>
     );
-  };
+  }
 
-  const renderDecksView = () => {
-    if (isLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="h-8 w-8 border-2 border-t-transparent border-primary rounded-full animate-spin"></div>
-        </div>
-      );
-    }
-
+  if (currentView === 'analytics' && selectedDeckId) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold">My Flashcard Decks</h1>
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Create New Deck
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Create New Deck</DialogTitle>
-                <DialogDescription>
-                  Enter a title for your new flashcard deck.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="title" className="text-right">
-                    Title
-                  </Label>
-                  <Input
-                    id="title"
-                    value={newDeckTitle}
-                    onChange={(e) => setNewDeckTitle(e.target.value)}
-                    className="col-span-3"
-                  />
-                </div>
-              </div>
-              <Button onClick={handleCreateDeck} disabled={isCreating}>
-                {isCreating ? "Creating..." : "Create Deck"}
-              </Button>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {decks.map((deck) => {
-            const deckRank = deckRanks[deck.deck_id];
-            const hasRank = deckRank && deckRank.bestRank !== 'UNRANKED';
-            
-            return (
-              <TiltedCard 
-                key={deck.deck_id}
-                containerHeight="280px"
-                scaleOnHover={1.05}
-                rotateAmplitude={5}
-              >
-                <Card 
-                  className="h-full hover:shadow-xl transition-all duration-300 cursor-pointer group relative overflow-hidden bg-gradient-to-br from-card to-card/90 border-2"
-                  onClick={() => handleDeckSelect(deck)}
-                >
-                  {/* Rank Badge Overlay */}
-                  {hasRank && (
-                    <div className="absolute top-4 right-4 z-10">
-                      <DeckRankBadge 
-                        rank={deckRank.bestRank} 
-                        size="md"
-                        className="shadow-lg animate-pulse"
-                      />
-                    </div>
-                  )}
-                  
-                  {/* Gaming-style background effect */}
-                  {hasRank && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-50" />
-                  )}
-                  
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors pr-16 line-clamp-2">
-                      {deck.title}
-                    </CardTitle>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Cards:</span>
-                          <span className="font-semibold">{deck.card_count || 0}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Created:</span>
-                          <span className="font-medium text-xs">
-                            {new Date(deck.date_created).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* Rank Information */}
-                      {hasRank && (
-                        <div className="bg-primary/10 rounded-lg p-3 border border-primary/20">
-                          <div className="text-center">
-                            <div className="text-lg font-bold text-primary">{deckRank.bestScore}</div>
-                            <div className="text-xs text-muted-foreground">Best Score</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Progress indicator */}
-                    <div className="mt-4">
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Progress</span>
-                        <span>{hasRank ? `${Math.round((deckRank.bestScore / ((deck.card_count || 1) * 100)) * 100)}%` : '0%'}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all duration-500"
-                          style={{ 
-                            width: hasRank ? `${Math.round((deckRank.bestScore / ((deck.card_count || 1) * 100)) * 100)}%` : '0%' 
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TiltedCard>
-            );
-          })}
-
-          <TiltedCard containerHeight="280px" scaleOnHover={1.02}>
-            <Card className="h-full border-dashed border-2 border-muted bg-muted/20 hover:bg-muted/30 transition-colors cursor-pointer">
-              <CardContent className="flex items-center justify-center h-full p-6">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="ghost" className="text-muted-foreground hover:text-primary h-full w-full flex flex-col gap-2">
-                      <PlusCircle className="h-8 w-8" />
-                      <span>Create New Deck</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Create New Deck</DialogTitle>
-                      <DialogDescription>
-                        Enter a title for your new flashcard deck.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                      <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="title" className="text-right">
-                          Title
-                        </Label>
-                        <Input
-                          id="title"
-                          value={newDeckTitle}
-                          onChange={(e) => setNewDeckTitle(e.target.value)}
-                          className="col-span-3"
-                        />
-                      </div>
-                    </div>
-                    <Button onClick={handleCreateDeck} disabled={isCreating}>
-                      {isCreating ? "Creating..." : "Create Deck"}
-                    </Button>
-                  </DialogContent>
-                </Dialog>
-              </CardContent>
-            </Card>
-          </TiltedCard>
-        </div>
-
-        <div className="flex items-center justify-between py-4 text-sm text-muted-foreground">
-          <span>Total Decks: {decks.length}</span>
-          <span>🎯 Study smart, achieve more!</span>
-        </div>
+      <div className="container px-3 md:px-4 py-4 md:py-6 lg:py-8 h-full">
+        <DeckAnalytics
+          deckId={selectedDeckId}
+          deckTitle={selectedDeckTitle}
+          onClose={handleBackToDecks}
+          onDrillsGenerated={handleBackToDecks}
+        />
       </div>
     );
-  };
+  }
 
   return (
-    <div className="container max-w-6xl mx-auto py-12">
-      {currentView === 'decks' && renderDecksView()}
-      {currentView === 'deck' && renderDeckView()}
-      {currentView === 'filtered' && renderFilteredView()}
-      {currentView === 'quiz' && selectedDeck && (
-        <MultipleChoiceQuiz deckId={selectedDeck.deck_id} onComplete={handleQuizComplete} />
-      )}
-      {currentView === 'practice' && selectedDeck && (
-        <PracticeMode deckId={selectedDeck.deck_id} onComplete={handleBackToDecks} />
-      )}
-      {currentView === 'analytics' && selectedDeck && (
-        <DeckAnalytics deckId={selectedDeck.deck_id} deckTitle={selectedDeck.title} onClose={handleBackToDecks} />
+    <div className="container px-3 md:px-4 py-4 md:py-6 lg:py-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4 mb-4 md:mb-6">
+        <div className="flex items-center gap-2 md:gap-3">
+          <span className="text-2xl md:text-3xl">🎓</span>
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-serif font-bold">Flashcards</h1>
+        </div>
+        
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-2 hover:scale-105 transition-transform text-sm w-full sm:w-auto">
+              <Plus className="h-4 w-4" />
+              New Deck
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="animate-scale-in w-[95vw] max-w-md mx-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Create New Deck
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                placeholder="Enter deck title..."
+                value={newDeckTitle}
+                onChange={(e) => setNewDeckTitle(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateDeck()}
+                className="focus:ring-2 focus:ring-primary transition-all"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="text-sm">
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateDeck} className="hover:scale-105 transition-transform text-sm">
+                  Create Deck
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <div className="h-6 w-6 md:h-8 md:w-8 border-2 border-t-transparent border-primary rounded-full animate-spin"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+          {decks.map((deck, index) => (
+            <div 
+              key={deck.deck_id} 
+              className="animate-fade-in"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <TiltedCard
+                containerHeight="auto"
+                containerWidth="100%"
+                scaleOnHover={1.02}
+                rotateAmplitude={6}
+                showMobileWarning={false}
+              >
+                <FlashcardDeckCard
+                  deck={deck}
+                  onStartPractice={() => handleStartPractice(deck.deck_id)}
+                  onStartQuiz={() => handleStartQuiz(deck.deck_id)}
+                  onViewAnalytics={() => handleViewAnalytics(deck.deck_id, deck.title)}
+                  onCardsAdded={loadDecks}
+                />
+              </TiltedCard>
+            </div>
+          ))}
+          
+          {decks.length === 0 && (
+            <Card className="col-span-full animate-fade-in">
+              <CardContent className="p-6 md:p-8 text-center">
+                <div className="text-4xl md:text-6xl mb-4">📚</div>
+                <h3 className="text-base md:text-lg font-medium mb-2">No flashcard decks yet</h3>
+                <p className="text-sm md:text-base text-muted-foreground mb-4">
+                  Create your first deck to start studying with flashcards
+                </p>
+                <Button 
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="hover:scale-105 transition-transform text-sm"
+                >
+                  Create Your First Deck
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
+  );
+};
+
+const FlashcardDeckCard = ({ 
+  deck, 
+  onStartPractice,
+  onStartQuiz,
+  onViewAnalytics,
+  onCardsAdded
+}: { 
+  deck: FlashcardDeck; 
+  onStartPractice: () => void;
+  onStartQuiz: () => void;
+  onViewAnalytics: () => void;
+  onCardsAdded: () => void;
+}) => {
+  const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
+  const [isGeneratingDrills, setIsGeneratingDrills] = useState(false);
+  
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      setIsUploading(true);
+      setUploadProgress('Preparing upload...');
+      
+      console.log('Starting file upload for deck:', deck.deck_id);
+      console.log('File details:', {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      });
+      
+      // File validation feedback
+      const maxSizeInMB = 10;
+      if (file.size > maxSizeInMB * 1024 * 1024) {
+        throw new Error(`File size must be less than ${maxSizeInMB}MB`);
+      }
+
+      const supportedExtensions = ['.pdf', '.pptx', '.docx', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      
+      if (!supportedExtensions.includes(fileExtension)) {
+        throw new Error(`Unsupported file type. Please upload: ${supportedExtensions.join(', ')}`);
+      }
+
+      setUploadProgress('Uploading file...');
+      
+      // Add a small delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setUploadProgress('Processing content...');
+      
+      const result = await flashcardApi.generateFlashcards(deck.deck_id, file, 30);
+      
+      setUploadProgress('Creating flashcards...');
+      
+      // Another small delay for UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('Upload completed successfully:', result);
+      
+      toast({
+        title: "Success! ✨",
+        description: `Generated ${result.cards?.length || 'multiple'} flashcards from "${file.name}"`
+      });
+      onCardsAdded();
+      
+    } catch (error) {
+      console.error('Error generating flashcards:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate flashcards from file';
+      
+      toast({
+        title: "Upload Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress('');
+      event.target.value = '';
+    }
+  };
+
+  const handleUploadClick = () => {
+    const fileInput = document.getElementById(`upload-${deck.deck_id}`) as HTMLInputElement;
+    if (fileInput) {
+      console.log('Triggering file input click for deck:', deck.deck_id);
+      fileInput.click();
+    }
+  };
+
+  const handleGenerateSmartDrills = async () => {
+    setIsGeneratingDrills(true);
+    try {
+      const result = await flashcardApi.generateAdaptiveDrills(deck.deck_id, 'wrong', 5);
+      
+      toast({
+        title: "Smart drills generated! 🧠",
+        description: `Added ${result.cards?.length || 0} practice cards to help improve your performance.`
+      });
+      onCardsAdded();
+      
+    } catch (error) {
+      console.error('Error generating smart drills:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate smart drills",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingDrills(false);
+    }
+  };
+
+  // Determine if deck needs improvement (placeholder logic - would need actual performance data)
+  const needsImprovement = (deck.card_count || 0) > 5; // Simple heuristic for demo
+  
+  return (
+    <>
+      <Card className="h-full hover:shadow-lg transition-all duration-300 group">
+        <CardHeader className="pb-2 px-4 pt-4">
+          <CardTitle className="text-base md:text-lg font-serif flex items-center gap-2">
+            <span className="text-lg md:text-xl">🃏</span>
+            <span className="truncate">{deck.title}</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 md:space-y-4 px-4 pb-4">
+          <div className="text-xs md:text-sm text-muted-foreground">
+            {deck.card_count || 0} cards • Created {new Date(deck.date_created).toLocaleDateString()}
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            {/* Primary actions - always visible */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={onStartPractice} 
+                className="group-hover:scale-105 transition-transform text-xs md:text-sm py-2 h-auto"
+                disabled={!deck.card_count || deck.card_count === 0}
+              >
+                <Play className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                Practice
+              </Button>
+              
+              <Button 
+                onClick={onStartQuiz} 
+                variant="outline"
+                className="group-hover:scale-105 transition-transform bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 text-xs md:text-sm py-2 h-auto"
+                disabled={!deck.card_count || deck.card_count < 5}
+              >
+                <Clock className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                Quiz
+              </Button>
+            </div>
+
+            {/* Secondary actions in dropdown menu */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsManualDialogOpen(true)}
+                className="flex-1 group-hover:scale-105 transition-transform text-xs md:text-sm py-2 h-auto"
+              >
+                <Edit className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                Add Cards
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="group-hover:scale-105 transition-transform px-2 py-2 h-auto">
+                    <MoreVertical className="h-3 w-3 md:h-4 md:w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40 md:w-48">
+                  <DropdownMenuItem onClick={onViewAnalytics} disabled={!deck.card_count || deck.card_count === 0} className="text-xs md:text-sm">
+                    <BarChart3 className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                    Analytics
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuSeparator />
+                  
+                  <DropdownMenuItem onClick={handleUploadClick} disabled={isUploading} className="text-xs md:text-sm">
+                    <Upload className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                    {isUploading ? "Uploading..." : "Upload File"}
+                  </DropdownMenuItem>
+                  
+                  {needsImprovement && (
+                    <DropdownMenuItem onClick={handleGenerateSmartDrills} disabled={isGeneratingDrills} className="text-xs md:text-sm">
+                      <Brain className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                      {isGeneratingDrills ? "Generating..." : "Smart Drills"}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Hidden file input */}
+              <input
+                type="file"
+                id={`upload-${deck.deck_id}`}
+                accept=".pdf,.pptx,.docx,.txt"
+                onChange={handleFileUpload}
+                className="hidden"
+                disabled={isUploading}
+              />
+            </div>
+          </div>
+          
+          {isUploading && (
+            <div className="text-xs text-center text-muted-foreground animate-pulse bg-blue-50 p-2 rounded">
+              📤 {uploadProgress}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      <ManualCardDialog
+        isOpen={isManualDialogOpen}
+        onOpenChange={setIsManualDialogOpen}
+        deckId={deck.deck_id}
+        onCardsAdded={onCardsAdded}
+      />
+    </>
   );
 };
 
