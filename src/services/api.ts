@@ -3,6 +3,7 @@
 export * from './authApi';
 export * from './chatApi';
 export * from './flashcardApi';
+export * from './quizApi';
 export * from './apiConfig';
 
 // Export secure token storage for backward compatibility
