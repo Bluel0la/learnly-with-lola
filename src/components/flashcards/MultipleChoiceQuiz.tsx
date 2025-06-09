@@ -152,6 +152,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
         const wrongAnswers = allResponses.length - correctAnswers;
         
         await supabase.from('flashcard_attempt').insert({
+          attempt_id: crypto.randomUUID(),
           user_id: profile.user_id,
           card_id: deckId, // Using card_id field for deck reference
           correct: correctAnswers > wrongAnswers,
@@ -250,7 +251,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
 
       <Card className={`transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-medium leading-relaxed">
+          <CardTitle className="text-xl font-medium leading-relaxed break-words">
             {currentCard.question}
           </CardTitle>
         </CardHeader>
@@ -265,7 +266,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
                 <Button
                   key={index}
                   variant={isSelected && !hasAnswered ? "default" : "outline"}
-                  className={`w-full text-left justify-start min-h-[60px] p-4 transition-all duration-300 whitespace-normal text-wrap ${
+                  className={`w-full text-left justify-start min-h-[60px] p-4 transition-all duration-300 whitespace-normal break-words ${
                     hasAnswered
                       ? isCorrect
                         ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
@@ -279,7 +280,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
                   onClick={() => handleAnswerSelect(option)}
                   disabled={hasAnswered}
                 >
-                  <span className="text-sm leading-relaxed break-words">
+                  <span className="text-sm leading-relaxed break-words text-wrap hyphens-auto overflow-wrap-anywhere">
                     {option}
                   </span>
                 </Button>
