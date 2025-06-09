@@ -250,7 +250,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
 
       <Card className={`transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
         <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-medium leading-relaxed break-words">
+          <CardTitle className="text-xl font-medium leading-relaxed">
             {currentCard.question}
           </CardTitle>
         </CardHeader>
@@ -265,7 +265,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
                 <Button
                   key={index}
                   variant={isSelected && !hasAnswered ? "default" : "outline"}
-                  className={`w-full text-left justify-start min-h-[60px] p-4 transition-all duration-300 whitespace-normal break-words ${
+                  className={`w-full text-left justify-start p-4 transition-all duration-300 h-auto min-h-[60px] ${
                     hasAnswered
                       ? isCorrect
                         ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
@@ -274,14 +274,14 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
                         : 'opacity-50'
                       : isSelected
                       ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : 'hover:bg-gray-50'
+                      : 'hover:bg-blue-50 hover:border-blue-300'
                   }`}
                   onClick={() => handleAnswerSelect(option)}
                   disabled={hasAnswered}
                 >
-                  <span className="text-sm leading-relaxed break-words text-wrap hyphens-auto overflow-wrap-anywhere">
+                  <div className="text-sm leading-relaxed whitespace-normal break-words w-full text-left">
                     {option}
-                  </span>
+                  </div>
                 </Button>
               );
             })}

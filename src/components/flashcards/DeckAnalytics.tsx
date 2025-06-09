@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -299,43 +298,49 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
 
       {/* Interactive Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="text-lg">Study Progress</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span>Studied Cards</span>
-              <span className="font-medium">{stats.studiedCards}</span>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <span className="font-medium">Studied Cards</span>
+              <Badge variant="default" className="bg-blue-500">
+                {stats.studiedCards}
+              </Badge>
             </div>
-            <div className="flex justify-between items-center">
-              <span>Unstudied Cards</span>
+            <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+              <span className="font-medium">Unstudied Cards</span>
               <div className="flex items-center gap-2">
-                <span className="font-medium">{stats.unstudiedCards}</span>
+                <Badge variant="outline" className="border-gray-400">
+                  {stats.unstudiedCards}
+                </Badge>
                 {stats.unstudiedCards > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleViewCards('unstudied')}
-                    className="h-6 px-2"
+                    className="h-8 px-3 hover:bg-blue-100"
                   >
-                    <Eye className="h-3 w-3" />
+                    <Eye className="h-4 w-4" />
                   </Button>
                 )}
               </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span>Bookmarked</span>
+            <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg border border-purple-200 hover:bg-purple-100 transition-colors">
+              <span className="font-medium">Bookmarked</span>
               <div className="flex items-center gap-2">
-                <span className="font-medium">{stats.bookmarkedCards}</span>
+                <Badge variant="outline" className="border-purple-400 text-purple-700">
+                  {stats.bookmarkedCards}
+                </Badge>
                 {stats.bookmarkedCards > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleViewCards('bookmarked')}
-                    className="h-6 px-2"
+                    className="h-8 px-3 hover:bg-purple-200"
                   >
-                    <Bookmark className="h-3 w-3" />
+                    <Bookmark className="h-4 w-4" />
                   </Button>
                 )}
               </div>
@@ -343,36 +348,43 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
             <CardTitle className="text-lg">Performance</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between">
-              <span>Total Cards</span>
-              <span className="font-medium">{stats.totalCards}</span>
+          <CardContent className="space-y-4">
+            <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-200">
+              <span className="font-medium">Total Cards</span>
+              <Badge variant="default" className="bg-green-500">
+                {stats.totalCards}
+              </Badge>
             </div>
-            <div className="flex justify-between items-center">
-              <span>Difficult Cards</span>
+            <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">
+              <span className="font-medium">Difficult Cards</span>
               <div className="flex items-center gap-2">
-                <span className="font-medium text-red-600">{stats.hardCards}</span>
+                <Badge variant="destructive">
+                  {stats.hardCards}
+                </Badge>
                 {stats.hardCards > 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleViewCards('difficult')}
-                    className="h-6 px-2"
+                    className="h-8 px-3 hover:bg-red-200"
                   >
-                    <AlertCircle className="h-3 w-3" />
+                    <AlertCircle className="h-4 w-4" />
                   </Button>
                 )}
               </div>
             </div>
-            <div className="flex justify-between">
-              <span>Success Rate</span>
-              <span className={`font-medium ${stats.averageAccuracy >= 70 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <span className="font-medium">Success Rate</span>
+              <Badge 
+                variant={stats.averageAccuracy >= 70 ? "default" : "destructive"}
+                className={stats.averageAccuracy >= 70 ? "bg-green-500" : ""}
+              >
                 {stats.averageAccuracy}%
-              </span>
+              </Badge>
             </div>
           </CardContent>
         </Card>
