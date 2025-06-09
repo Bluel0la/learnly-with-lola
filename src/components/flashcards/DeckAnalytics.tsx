@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, Brain, TrendingUp, TrendingDown, Target, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { BarChart3, Brain, TrendingUp, TrendingDown, Target, Loader2, Eye, Bookmark, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FlashcardCard, flashcardApi } from '@/services/flashcardApi';
 
@@ -35,6 +36,9 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
   const [stats, setStats] = useState<DeckStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingDrills, setIsGeneratingDrills] = useState(false);
+  const [showCardsDialog, setShowCardsDialog] = useState(false);
+  const [selectedCards, setSelectedCards] = useState<FlashcardCard[]>([]);
+  const [dialogTitle, setDialogTitle] = useState('');
 
   const loadDeckAnalytics = async () => {
     try {
@@ -112,6 +116,33 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
     } finally {
       setIsGeneratingDrills(false);
     }
+  };
+
+  const handleViewCards = (type: 'difficult' | 'bookmarked' | 'unstudied') => {
+    let filteredCards: FlashcardCard[] = [];
+    let title = '';
+
+    switch (type) {
+      case 'difficult':
+        filteredCards = cards.filter(card => {
+          const total = (card.correct_count || 0) + (card.wrong_count || 0);
+          return total > 2 && (card.correct_count || 0) / total < 0.6;
+        });
+        title = 'Difficult Cards (< 60% accuracy)';
+        break;
+      case 'bookmarked':
+        filteredCards = cards.filter(card => card.is_bookmarked);
+        title = 'Bookmarked Cards';
+        break;
+      case 'unstudied':
+        filteredCards = cards.filter(card => !card.is_studied);
+        title = 'Unstudied Cards';
+        break;
+    }
+
+    setSelectedCards(filteredCards);
+    setDialogTitle(title);
+    setShowCardsDialog(true);
   };
 
   useEffect(() => {
@@ -266,24 +297,48 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
         </Card>
       )}
 
-      {/* Detailed Breakdown */}
+      {/* Interactive Detailed Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Study Progress</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Studied Cards</span>
               <span className="font-medium">{stats.studiedCards}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Unstudied Cards</span>
-              <span className="font-medium">{stats.unstudiedCards}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{stats.unstudiedCards}</span>
+                {stats.unstudiedCards > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewCards('unstudied')}
+                    className="h-6 px-2"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Bookmarked</span>
-              <span className="font-medium">{stats.bookmarkedCards}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{stats.bookmarkedCards}</span>
+                {stats.bookmarkedCards > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewCards('bookmarked')}
+                    className="h-6 px-2"
+                  >
+                    <Bookmark className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -297,9 +352,21 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
               <span>Total Cards</span>
               <span className="font-medium">{stats.totalCards}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span>Difficult Cards</span>
-              <span className="font-medium text-red-600">{stats.hardCards}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-red-600">{stats.hardCards}</span>
+                {stats.hardCards > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewCards('difficult')}
+                    className="h-6 px-2"
+                  >
+                    <AlertCircle className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="flex justify-between">
               <span>Success Rate</span>
@@ -310,6 +377,47 @@ const DeckAnalytics: React.FC<DeckAnalyticsProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* Cards Review Dialog */}
+      <Dialog open={showCardsDialog} onOpenChange={setShowCardsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{dialogTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {selectedCards.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">No cards found in this category.</p>
+            ) : (
+              selectedCards.map((card) => (
+                <Card key={card.card_id} className="p-4">
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">{card.question}</p>
+                    <p className="text-muted-foreground text-sm">{card.answer}</p>
+                    <div className="flex gap-2 text-xs">
+                      {card.is_bookmarked && (
+                        <Badge variant="outline" className="text-xs">
+                          <Bookmark className="h-3 w-3 mr-1" />
+                          Bookmarked
+                        </Badge>
+                      )}
+                      {card.times_reviewed && card.times_reviewed > 0 && (
+                        <Badge variant="outline" className="text-xs">
+                          Reviewed {card.times_reviewed} times
+                        </Badge>
+                      )}
+                      {card.correct_count !== undefined && card.wrong_count !== undefined && (
+                        <Badge variant="outline" className="text-xs">
+                          {card.correct_count}✓ {card.wrong_count}✗
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

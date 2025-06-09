@@ -146,22 +146,25 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
       const endTime = Date.now();
       const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
       
-      // Save quiz attempt to database
+      // Save quiz attempt to database using the correct table name
       if (profile?.user_id) {
         const correctAnswers = allResponses.filter(r => r.is_correct).length;
         const wrongAnswers = allResponses.length - correctAnswers;
         
-        await supabase.from('quiz_attempts').insert({
+        await supabase.from('flashcard_attempt').insert({
           user_id: profile.user_id,
-          deck_id: deckId,
-          total_questions: quizCards.length,
-          correct_answers: correctAnswers,
-          wrong_answers: wrongAnswers,
-          final_score: totalScore,
-          final_rank: rank,
-          max_streak: maxStreak,
-          time_taken_seconds: timeTakenSeconds
+          card_id: deckId, // Using card_id field for deck reference
+          correct: correctAnswers > wrongAnswers,
+          time_taken_seconds: timeTakenSeconds,
+          attempt_number: 1
         });
+      }
+
+      // Submit quiz to API for analytics
+      try {
+        await flashcardApi.submitQuiz(deckId, allResponses);
+      } catch (error) {
+        console.error('Failed to submit quiz to API:', error);
       }
 
       setIsComplete(true);
@@ -220,7 +223,7 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
   const progress = ((currentCardIndex + 1) / quizCards.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-4xl mx-auto p-4 space-y-6">
       <ScoreMeter 
         streak={streak} 
         rank={rank} 
@@ -228,8 +231,8 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
         totalQuestions={quizCards.length}
       />
       
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-2">
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-3">
           <span className="text-sm text-gray-600">
             Question {currentCardIndex + 1} of {quizCards.length}
           </span>
@@ -237,52 +240,58 @@ const MultipleChoiceQuiz: React.FC<MultipleChoiceQuizProps> = ({ deckId, onCompl
             Score: {totalScore}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 rounded-full h-3">
           <div 
-            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+            className="bg-blue-500 h-3 rounded-full transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
       <Card className={`transition-all duration-300 ${isTransitioning ? 'opacity-50 scale-95' : 'opacity-100 scale-100'}`}>
-        <CardHeader>
-          <CardTitle className="text-lg">{currentCard.question}</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl font-medium leading-relaxed">
+            {currentCard.question}
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {currentCard.options.map((option, index) => {
-            const isSelected = selectedAnswer === option;
-            const isCorrect = hasAnswered && option === currentCard.options[currentCard.correct_answer_index];
-            const isWrong = hasAnswered && isSelected && !isCorrect;
-            
-            return (
-              <Button
-                key={index}
-                variant={isSelected ? "default" : "outline"}
-                className={`w-full text-left justify-start h-auto p-4 transition-all duration-300 ${
-                  hasAnswered
-                    ? isCorrect
-                      ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
-                      : isWrong
-                      ? 'bg-red-500 hover:bg-red-500 text-white border-red-500'
-                      : 'opacity-50'
-                    : isSelected
-                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                    : 'hover:bg-gray-50'
-                }`}
-                onClick={() => handleAnswerSelect(option)}
-                disabled={hasAnswered}
-              >
-                {option}
-              </Button>
-            );
-          })}
+          <div className="grid gap-3">
+            {currentCard.options.map((option, index) => {
+              const isSelected = selectedAnswer === option;
+              const isCorrect = hasAnswered && option === currentCard.options[currentCard.correct_answer_index];
+              const isWrong = hasAnswered && isSelected && !isCorrect;
+              
+              return (
+                <Button
+                  key={index}
+                  variant={isSelected && !hasAnswered ? "default" : "outline"}
+                  className={`w-full text-left justify-start min-h-[60px] p-4 transition-all duration-300 whitespace-normal text-wrap ${
+                    hasAnswered
+                      ? isCorrect
+                        ? 'bg-green-500 hover:bg-green-500 text-white border-green-500'
+                        : isWrong
+                        ? 'bg-red-500 hover:bg-red-500 text-white border-red-500'
+                        : 'opacity-50'
+                      : isSelected
+                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                      : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => handleAnswerSelect(option)}
+                  disabled={hasAnswered}
+                >
+                  <span className="text-sm leading-relaxed break-words">
+                    {option}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
 
           {!hasAnswered && (
             <Button 
               onClick={handleSubmitAnswer}
               disabled={!selectedAnswer}
-              className="w-full mt-4"
+              className="w-full mt-6 h-12 text-base font-medium"
             >
               Submit Answer
             </Button>
