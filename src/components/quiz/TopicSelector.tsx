@@ -38,9 +38,9 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full overflow-hidden">
       {/* Search Bar */}
-      <div className="relative">
+      <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         <Input
           placeholder="Search topics..."
@@ -51,8 +51,8 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
       </div>
 
       {/* Topics Grid with Horizontal Scroll */}
-      <div className="relative">
-        <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="w-full overflow-hidden">
+        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
           {filteredTopics.map((topic, index) => {
             const isSelected = selectedTopics.includes(topic.topic_id);
             const colorClass = colors[index % colors.length];
@@ -60,7 +60,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
             return (
               <Card 
                 key={topic.topic_id}
-                className={`min-w-[200px] bg-gradient-to-br ${colorClass} text-white border-0 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl relative ${
+                className={`flex-shrink-0 w-48 bg-gradient-to-br ${colorClass} text-white border-0 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl relative ${
                   isSelected ? 'ring-4 ring-white/50' : ''
                 }`}
                 onClick={() => onTopicToggle(topic.topic_id)}
@@ -86,10 +86,6 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
             );
           })}
         </div>
-        
-        {/* Scroll Indicators */}
-        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white/50 to-transparent pointer-events-none" />
-        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none" />
       </div>
     </div>
   );

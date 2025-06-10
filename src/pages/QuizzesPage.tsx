@@ -69,7 +69,7 @@ const QuizzesPage = () => {
   };
 
   return (
-    <div className="container max-w-6xl mx-auto py-8">
+    <div className="container max-w-6xl mx-auto py-8 px-4">
       {quizState === 'selection' && (
         <div className="space-y-8">
           {/* Hero Section */}
@@ -113,17 +113,7 @@ const QuizzesPage = () => {
           </Tabs>
 
           {/* Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
-            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Target className="h-6 w-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-lg mb-2 text-blue-800">Adaptive Learning</h3>
-                <p className="text-sm text-blue-600">Questions adapt to your skill level</p>
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
             <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -155,40 +145,8 @@ const QuizzesPage = () => {
             </Card>
           </div>
 
-          {/* Performance Analytics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
-            <Card className="bg-gradient-to-br from-blue-500 to-purple-600 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  <Target className="h-6 w-6" />
-                  Adaptive Learning
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-blue-100">Difficulty:</span>
-                    <span className="font-medium">Adapts to your performance</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-blue-100">Topics:</span>
-                    <span className="font-medium">Multiple math subjects</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-blue-100">Feedback:</span>
-                    <span className="font-medium">Detailed explanations</span>
-                  </div>
-                </div>
-                
-                <Button 
-                  className="w-full bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-                  onClick={() => toast({ title: "Select a topic above to get started!" })}
-                >
-                  Get Started
-                </Button>
-              </CardContent>
-            </Card>
-
+          {/* Performance Analytics Card */}
+          <div className="mt-12">
             <Card className="bg-gradient-to-br from-green-500 to-blue-500 text-white border-0 shadow-xl hover:shadow-2xl transition-all duration-300">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
