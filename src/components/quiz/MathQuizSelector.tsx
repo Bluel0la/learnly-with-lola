@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { quizApi, MathTopic, StartQuizRequest } from '@/services/quizApi';
 import { Trophy, Target, Clock, Brain } from 'lucide-react';
+import TopicSelector from './TopicSelector';
 
 interface MathQuizSelectorProps {
   onQuizStart: (sessionId: string, topic: string, totalQuestions: number) => void;
@@ -38,6 +39,10 @@ const MathQuizSelector: React.FC<MathQuizSelectorProps> = ({ onQuizStart }) => {
 
     fetchTopics();
   }, [toast]);
+
+  const handleTopicToggle = (topicId: string) => {
+    setSelectedTopic(topicId);
+  };
 
   const handleStartQuiz = async () => {
     if (!selectedTopic) {
@@ -87,7 +92,7 @@ const MathQuizSelector: React.FC<MathQuizSelectorProps> = ({ onQuizStart }) => {
   const selectedTopicData = topics.find(t => t.topic_id === selectedTopic);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8">
       {/* Main Quiz Card */}
       <Card className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white border-0 shadow-2xl">
         <CardHeader className="text-center pb-4">
@@ -102,22 +107,6 @@ const MathQuizSelector: React.FC<MathQuizSelectorProps> = ({ onQuizStart }) => {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-blue-100">Choose Your Topic</label>
-                <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-                  <SelectTrigger className="bg-white/10 border-white/20 text-white placeholder:text-blue-200">
-                    <SelectValue placeholder="Select a math topic" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {topics.map((topic) => (
-                      <SelectItem key={topic.topic_id} value={topic.topic_id}>
-                        {topic.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <label className="text-sm font-medium text-blue-100">Number of Questions</label>
                 <Select value={numQuestions.toString()} onValueChange={(value) => setNumQuestions(Number(value))}>
@@ -167,40 +156,21 @@ const MathQuizSelector: React.FC<MathQuizSelectorProps> = ({ onQuizStart }) => {
         </CardContent>
       </Card>
 
-      {/* Topic Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {topics.slice(0, 6).map((topic, index) => {
-          const colors = [
-            'from-red-400 to-red-600',
-            'from-blue-400 to-blue-600', 
-            'from-green-400 to-green-600',
-            'from-purple-400 to-purple-600',
-            'from-yellow-400 to-yellow-600',
-            'from-pink-400 to-pink-600'
-          ];
-          
-          return (
-            <Card 
-              key={topic.topic_id}
-              className={`bg-gradient-to-br ${colors[index]} text-white border-0 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl`}
-              onClick={() => setSelectedTopic(topic.topic_id)}
-            >
-              <CardContent className="p-6 text-center">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
-                  <span className="text-2xl font-bold">{topic.name.charAt(0)}</span>
-                </div>
-                <h3 className="font-semibold text-lg mb-2">{topic.name}</h3>
-                <p className="text-sm opacity-90">Practice & improve</p>
-                {selectedTopic === topic.topic_id && (
-                  <div className="mt-3 w-full h-1 bg-white/30 rounded">
-                    <div className="h-full bg-white rounded animate-pulse"></div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Topic Selection with Search and Horizontal Scroll */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Choose Your Topic</CardTitle>
+          <p className="text-gray-600">Select a topic to focus your practice session</p>
+        </CardHeader>
+        <CardContent>
+          <TopicSelector
+            topics={topics}
+            selectedTopics={selectedTopic ? [selectedTopic] : []}
+            onTopicToggle={handleTopicToggle}
+            multiSelect={false}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 };

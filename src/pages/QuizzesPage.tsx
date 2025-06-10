@@ -2,19 +2,23 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import MathQuizSelector from '@/components/quiz/MathQuizSelector';
+import SimulatedExamSelector from '@/components/quiz/SimulatedExamSelector';
 import ActiveMathQuiz from '@/components/quiz/ActiveMathQuiz';
 import QuizResults from '@/components/quiz/QuizResults';
 import { SubmitResultResponse } from '@/services/quizApi';
-import { Trophy, Target, TrendingUp, Star, Brain, Zap } from 'lucide-react';
+import { Trophy, Target, TrendingUp, Star, Brain, Zap, Users } from 'lucide-react';
 
 type QuizState = 'selection' | 'active' | 'results';
+type QuizMode = 'single' | 'exam';
 
 interface ActiveQuizData {
   sessionId: string;
-  topic: string;
+  topic: string | string[];
   totalQuestions: number;
+  mode: QuizMode;
 }
 
 const QuizzesPage = () => {
@@ -24,7 +28,12 @@ const QuizzesPage = () => {
   const { toast } = useToast();
 
   const handleQuizStart = (sessionId: string, topic: string, totalQuestions: number) => {
-    setActiveQuiz({ sessionId, topic, totalQuestions });
+    setActiveQuiz({ sessionId, topic, totalQuestions, mode: 'single' });
+    setQuizState('active');
+  };
+
+  const handleExamStart = (sessionId: string, topics: string[], totalQuestions: number) => {
+    setActiveQuiz({ sessionId, topic: topics, totalQuestions, mode: 'exam' });
     setQuizState('active');
   };
 
@@ -50,6 +59,15 @@ const QuizzesPage = () => {
     setQuizState('selection');
   };
 
+  const getTopicDisplayName = () => {
+    if (!activeQuiz) return '';
+    if (activeQuiz.mode === 'exam') {
+      const topics = activeQuiz.topic as string[];
+      return `Mixed Topics (${topics.length} topics)`;
+    }
+    return activeQuiz.topic as string;
+  };
+
   return (
     <div className="container max-w-6xl mx-auto py-8">
       {quizState === 'selection' && (
@@ -69,8 +87,30 @@ const QuizzesPage = () => {
             </p>
           </div>
 
-          {/* Quiz Selector */}
-          <MathQuizSelector onQuizStart={handleQuizStart} />
+          {/* Quiz Mode Selection */}
+          <Tabs defaultValue="single" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+              <TabsTrigger value="single" className="flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                Single Topic
+              </TabsTrigger>
+              <TabsTrigger value="exam" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Simulated Exam
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="single" className="mt-8">
+              <MathQuizSelector onQuizStart={handleQuizStart} />
+            </TabsContent>
+            
+            <TabsContent value="exam" className="mt-8">
+              <SimulatedExamSelector 
+                topics={[]} // Will be loaded inside the component
+                onExamStart={handleExamStart} 
+              />
+            </TabsContent>
+          </Tabs>
 
           {/* Feature Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
@@ -107,10 +147,10 @@ const QuizzesPage = () => {
             <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
               <CardContent className="p-6 text-center">
                 <div className="w-12 h-12 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-6 w-6 text-white" />
+                  <Users className="h-6 w-6 text-white" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2 text-yellow-800">Quick Practice</h3>
-                <p className="text-sm text-yellow-600">5-20 question sessions</p>
+                <h3 className="font-semibold text-lg mb-2 text-yellow-800">Multi-Topic Exams</h3>
+                <p className="text-sm text-yellow-600">Test across multiple subjects</p>
               </CardContent>
             </Card>
           </div>
@@ -204,7 +244,7 @@ const QuizzesPage = () => {
       {quizState === 'active' && activeQuiz && (
         <ActiveMathQuiz
           sessionId={activeQuiz.sessionId}
-          topic={activeQuiz.topic}
+          topic={getTopicDisplayName()}
           totalQuestions={activeQuiz.totalQuestions}
           onQuizComplete={handleQuizComplete}
           onBack={handleBackToSelection}
@@ -214,7 +254,7 @@ const QuizzesPage = () => {
       {quizState === 'results' && activeQuiz && (
         <QuizResults
           sessionId={activeQuiz.sessionId}
-          topic={activeQuiz.topic}
+          topic={getTopicDisplayName()}
           onStartNewQuiz={handleStartNewQuiz}
           onBackToQuizzes={handleBackToQuizzes}
         />

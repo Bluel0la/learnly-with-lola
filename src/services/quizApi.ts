@@ -1,4 +1,3 @@
-
 import { API_BASE_URL, getAuthHeaders } from './apiConfig';
 
 // Types for Quiz API
@@ -18,6 +17,11 @@ export interface StartQuizResponse {
   total_questions: number;
   message: string;
   historical_accuracy: number;
+}
+
+export interface SimulatedExamRequest {
+  topics: string[];
+  num_questions: number;
 }
 
 export interface QuizQuestion {
@@ -129,6 +133,20 @@ class QuizApi {
 
     if (!response.ok) {
       throw new Error('Failed to start quiz session');
+    }
+
+    return response.json();
+  }
+
+  async startSimulatedExam(request: SimulatedExamRequest): Promise<StartQuizResponse> {
+    const response = await fetch(`${API_BASE_URL}/quiz/math/simulated-exam`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to start simulated exam');
     }
 
     return response.json();
