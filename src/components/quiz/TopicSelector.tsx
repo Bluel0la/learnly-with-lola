@@ -38,7 +38,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
   ];
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="space-y-4 w-full max-w-full overflow-hidden">
       {/* Search Bar */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -50,12 +50,9 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
         />
       </div>
 
-      {/* Topics Grid with Proper Horizontal Scroll Container */}
-      <div className="w-full">
-        <div className="flex gap-4 overflow-x-auto pb-4" style={{
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#CBD5E0 #F7FAFC'
-        }}>
+      {/* Topics Grid - Changed to responsive grid layout */}
+      <div className="w-full max-w-full overflow-hidden">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredTopics.map((topic, index) => {
             const isSelected = selectedTopics.includes(topic.topic_id);
             const colorClass = colors[index % colors.length];
@@ -63,7 +60,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
             return (
               <Card 
                 key={topic.topic_id}
-                className={`flex-shrink-0 w-48 bg-gradient-to-br ${colorClass} text-white border-0 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl relative ${
+                className={`w-full bg-gradient-to-br ${colorClass} text-white border-0 cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl relative ${
                   isSelected ? 'ring-4 ring-white/50' : ''
                 }`}
                 onClick={() => onTopicToggle(topic.topic_id)}

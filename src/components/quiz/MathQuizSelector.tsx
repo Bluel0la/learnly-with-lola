@@ -92,7 +92,7 @@ const MathQuizSelector: React.FC<MathQuizSelectorProps> = ({ onQuizStart }) => {
   const selectedTopicData = topics.find(t => t.topic_id === selectedTopic);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="w-full max-w-full overflow-hidden space-y-8">
       {/* Main Quiz Card */}
       <Card className="bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white border-0 shadow-2xl">
         <CardHeader className="text-center pb-4">
@@ -156,13 +156,13 @@ const MathQuizSelector: React.FC<MathQuizSelectorProps> = ({ onQuizStart }) => {
         </CardContent>
       </Card>
 
-      {/* Topic Selection with Search and Horizontal Scroll */}
+      {/* Topic Selection */}
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Choose Your Topic</CardTitle>
           <p className="text-gray-600">Select a topic to focus your practice session</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="max-w-full overflow-hidden">
           <TopicSelector
             topics={topics}
             selectedTopics={selectedTopic ? [selectedTopic] : []}
