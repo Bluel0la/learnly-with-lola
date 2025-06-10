@@ -211,9 +211,9 @@ const QuizzesPage = () => {
         />
       )}
 
-      {quizState === 'results' && quizResults && activeQuiz && (
+      {quizState === 'results' && activeQuiz && (
         <QuizResults
-          results={quizResults}
+          sessionId={activeQuiz.sessionId}
           topic={activeQuiz.topic}
           onStartNewQuiz={handleStartNewQuiz}
           onBackToQuizzes={handleBackToQuizzes}
