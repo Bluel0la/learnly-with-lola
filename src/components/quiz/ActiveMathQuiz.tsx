@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { quizApi, QuizQuestion, QuestionResponse, SubmitResultResponse } from '@/services/quizApi';
-import { ArrowLeft, Clock, Trophy, Zap } from 'lucide-react';
+import { quizApi, QuizQuestion, QuestionResponse, SubmitResultResponse, AdaptiveQuestionBatch } from '@/services/quizApi';
+import { ArrowLeft, Clock, Trophy, Zap, Brain } from 'lucide-react';
 
 interface ActiveMathQuizProps {
   sessionId: string;
@@ -13,6 +13,8 @@ interface ActiveMathQuizProps {
   onQuizComplete: (results: SubmitResultResponse) => void;
   onBack: () => void;
 }
+
+type QuizPhase = 'initial-assessment' | 'adaptive-learning' | 'completed';
 
 const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({ 
   sessionId, 
@@ -28,15 +30,23 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [quizPhase, setQuizPhase] = useState<QuizPhase>('initial-assessment');
+  const [currentDifficulty, setCurrentDifficulty] = useState<string>('mixed');
+  const [previousScore, setPreviousScore] = useState<number>(0);
+  const [totalQuestionsAnswered, setTotalQuestionsAnswered] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchQuestions = async () => {
+    const fetchInitialQuestions = async () => {
       try {
-        const response = await quizApi.getQuestionBatch(sessionId);
+        const response = await quizApi.getInitialQuestionBatch(sessionId);
         setQuestions(response.current_batch);
+        toast({
+          title: "Assessment Phase",
+          description: "Starting with mixed difficulty to assess your skill level!",
+        });
       } catch (error) {
-        console.error('Failed to fetch questions:', error);
+        console.error('Failed to fetch initial questions:', error);
         toast({
           title: "Error",
           description: "Failed to load quiz questions. Please try again.",
@@ -47,7 +57,7 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
       }
     };
 
-    fetchQuestions();
+    fetchInitialQuestions();
   }, [sessionId, toast]);
 
   useEffect(() => {
@@ -84,20 +94,47 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      submitQuiz(updatedAnswers);
+      submitCurrentBatch(updatedAnswers);
     }
   };
 
-  const submitQuiz = async (answers: QuestionResponse[]) => {
+  const submitCurrentBatch = async (answers: QuestionResponse[]) => {
     setIsSubmitting(true);
     try {
       const response = await quizApi.submitAnswers(sessionId, { responses: answers });
-      onQuizComplete(response);
+      
+      if (quizPhase === 'initial-assessment') {
+        // After initial assessment, start adaptive learning
+        setQuizPhase('adaptive-learning');
+        setPreviousScore(response.score_percent);
+        setTotalQuestionsAnswered(prev => prev + answers.length);
+        
+        toast({
+          title: "Assessment Complete!",
+          description: `Score: ${response.score_percent}%. Starting adaptive questions at ${response.next_difficulty} level.`,
+        });
+
+        // Get next adaptive batch
+        await getNextAdaptiveBatch(5); // Get 5 more questions
+      } else {
+        // Continue with adaptive learning or complete quiz
+        const shouldContinue = window.confirm(
+          `Current batch score: ${response.score_percent}%. Would you like to continue with more questions?`
+        );
+        
+        if (shouldContinue) {
+          setTotalQuestionsAnswered(prev => prev + answers.length);
+          setPreviousScore(response.score_percent);
+          await getNextAdaptiveBatch(5);
+        } else {
+          onQuizComplete(response);
+        }
+      }
     } catch (error) {
-      console.error('Failed to submit quiz:', error);
+      console.error('Failed to submit answers:', error);
       toast({
         title: "Error",
-        description: "Failed to submit quiz. Please try again.",
+        description: "Failed to submit answers. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -105,10 +142,55 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
     }
   };
 
+  const getNextAdaptiveBatch = async (numQuestions: number) => {
+    setIsLoading(true);
+    try {
+      const response: AdaptiveQuestionBatch = await quizApi.getNextAdaptiveBatch(sessionId, { 
+        num_questions: numQuestions 
+      });
+      
+      setQuestions(response.current_batch);
+      setCurrentQuestionIndex(0);
+      setUserAnswers([]);
+      setCurrentDifficulty(response.difficulty_level);
+      setPreviousScore(response.previous_score_percent);
+      
+      toast({
+        title: "New Questions Ready!",
+        description: `Difficulty: ${response.difficulty_level}. Previous score: ${response.previous_score_percent}%`,
+      });
+    } catch (error) {
+      console.error('Failed to get next batch:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load next questions. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getPhaseIcon = () => {
+    switch (quizPhase) {
+      case 'initial-assessment': return <Brain className="h-5 w-5" />;
+      case 'adaptive-learning': return <Zap className="h-5 w-5" />;
+      default: return <Trophy className="h-5 w-5" />;
+    }
+  };
+
+  const getPhaseTitle = () => {
+    switch (quizPhase) {
+      case 'initial-assessment': return 'Skill Assessment';
+      case 'adaptive-learning': return `Adaptive Learning - ${currentDifficulty}`;
+      default: return 'Quiz Complete';
+    }
   };
 
   if (isLoading) {
@@ -159,8 +241,16 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
         </Button>
         
         <div className="text-center">
-          <h2 className="font-bold text-lg">{topic.charAt(0).toUpperCase() + topic.slice(1)} Quiz</h2>
-          <p className="text-blue-100">Question {currentQuestionIndex + 1} of {questions.length}</p>
+          <div className="flex items-center justify-center gap-2 mb-1">
+            {getPhaseIcon()}
+            <h2 className="font-bold text-lg">{getPhaseTitle()}</h2>
+          </div>
+          <p className="text-blue-100">
+            {topic.charAt(0).toUpperCase() + topic.slice(1)} • Question {currentQuestionIndex + 1} of {questions.length}
+          </p>
+          {totalQuestionsAnswered > 0 && (
+            <p className="text-blue-200 text-sm">Total answered: {totalQuestionsAnswered}</p>
+          )}
         </div>
         
         <div className="flex items-center gap-4">
@@ -177,7 +267,7 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
       {/* Progress Bar */}
       <div className="space-y-2">
         <div className="flex justify-between items-center">
-          <span className="text-sm font-medium text-gray-600">Progress</span>
+          <span className="text-sm font-medium text-gray-600">Current Batch Progress</span>
           <span className="text-sm font-bold text-blue-600">{Math.round(progress)}%</span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
@@ -245,7 +335,7 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
                 {isSubmitting ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Submitting Quiz...
+                    Processing...
                   </>
                 ) : currentQuestionIndex < questions.length - 1 ? (
                   <>
@@ -255,7 +345,7 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
                 ) : (
                   <>
                     <Trophy className="h-5 w-5" />
-                    Finish Quiz
+                    {quizPhase === 'initial-assessment' ? 'Complete Assessment' : 'Submit Batch'}
                   </>
                 )}
               </div>

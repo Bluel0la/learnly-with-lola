@@ -62,7 +62,6 @@ export interface SubmitResultResponse {
 
 export interface AdaptiveBatchRequest {
   num_questions: number;
-  difficulty: string;
 }
 
 export interface AdaptiveQuestionBatch {
@@ -71,6 +70,40 @@ export interface AdaptiveQuestionBatch {
   remaining: number;
   difficulty_level: string;
   previous_score_percent: number;
+}
+
+export interface QuizReviewResponse {
+  session_id: string;
+  topic: string;
+  total_questions: number;
+  score_percent: number;
+  results: GradedAnswer[];
+}
+
+export interface TopicPerformance {
+  topic: string;
+  total_answered: number;
+  correct: number;
+  wrong: number;
+  accuracy_percent: number;
+  average_difficulty: number;
+}
+
+export interface PerformanceResponse {
+  user_id: string;
+  performance_by_topic: TopicPerformance[];
+}
+
+export interface QuizSession {
+  session_id: string;
+  topic: string;
+  date: string;
+  accuracy: number;
+  total_questions: number;
+}
+
+export interface HistoryResponse {
+  sessions: QuizSession[];
 }
 
 class QuizApi {
@@ -101,14 +134,14 @@ class QuizApi {
     return response.json();
   }
 
-  async getQuestionBatch(sessionId: string): Promise<QuestionBatchResponse> {
+  async getInitialQuestionBatch(sessionId: string): Promise<QuestionBatchResponse> {
     const response = await fetch(`${API_BASE_URL}/quiz/math/questions/${sessionId}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch questions');
+      throw new Error('Failed to fetch initial questions');
     }
 
     return response.json();
@@ -129,14 +162,53 @@ class QuizApi {
   }
 
   async getNextAdaptiveBatch(sessionId: string, request: AdaptiveBatchRequest): Promise<AdaptiveQuestionBatch> {
-    const response = await fetch(`${API_BASE_URL}/quiz/math/${sessionId}/next-batch`, {
+    const response = await fetch(`${API_BASE_URL}/quiz/math/${sessionId}/next-adaptive-batch`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-      throw new Error('Failed to get next batch');
+      throw new Error('Failed to get next adaptive batch');
+    }
+
+    return response.json();
+  }
+
+  async getQuizReview(sessionId: string): Promise<QuizReviewResponse> {
+    const response = await fetch(`${API_BASE_URL}/quiz/math/${sessionId}/review`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch quiz review');
+    }
+
+    return response.json();
+  }
+
+  async getUserPerformance(): Promise<PerformanceResponse> {
+    const response = await fetch(`${API_BASE_URL}/quiz/math/performance`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user performance');
+    }
+
+    return response.json();
+  }
+
+  async getQuizHistory(): Promise<HistoryResponse> {
+    const response = await fetch(`${API_BASE_URL}/quiz/math/history`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch quiz history');
     }
 
     return response.json();
