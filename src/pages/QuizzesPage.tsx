@@ -8,10 +8,12 @@ import MathQuizSelector from '@/components/quiz/MathQuizSelector';
 import SimulatedExamSelector from '@/components/quiz/SimulatedExamSelector';
 import ActiveMathQuiz from '@/components/quiz/ActiveMathQuiz';
 import QuizResults from '@/components/quiz/QuizResults';
+import PerformanceAnalytics from '@/components/quiz/PerformanceAnalytics';
+import RecentActivities from '@/components/quiz/RecentActivities';
 import { SubmitResultResponse } from '@/services/quizApi';
 import { Trophy, Target, TrendingUp, Star, Brain, Zap, Users } from 'lucide-react';
 
-type QuizState = 'selection' | 'active' | 'results';
+type QuizState = 'selection' | 'active' | 'results' | 'analytics';
 type QuizMode = 'single' | 'exam';
 
 interface ActiveQuizData {
@@ -59,6 +61,10 @@ const QuizzesPage = () => {
     setQuizState('selection');
   };
 
+  const handleViewAnalytics = () => {
+    setQuizState('analytics');
+  };
+
   const getTopicDisplayName = () => {
     if (!activeQuiz) return '';
     if (activeQuiz.mode === 'exam') {
@@ -69,7 +75,7 @@ const QuizzesPage = () => {
   };
 
   return (
-    <div className="container max-w-6xl mx-auto py-8 px-4">
+    <div className="container max-w-6xl mx-auto py-8 px-4 overflow-x-hidden">
       {quizState === 'selection' && (
         <div className="space-y-8">
           {/* Hero Section */}
@@ -173,7 +179,7 @@ const QuizzesPage = () => {
                 <Button 
                   variant="outline"
                   className="w-full border-white text-white hover:bg-white hover:text-green-600 font-semibold"
-                  onClick={() => toast({ title: "Performance tracking coming soon!" })}
+                  onClick={handleViewAnalytics}
                 >
                   View Analytics
                 </Button>
@@ -184,17 +190,7 @@ const QuizzesPage = () => {
           {/* Recent Activity */}
           <div className="mt-12">
             <h2 className="text-2xl font-bold mb-6 text-center">Recent Activity</h2>
-            <Card className="bg-gradient-to-r from-gray-50 to-gray-100">
-              <CardContent className="p-8">
-                <div className="text-center text-gray-500">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">No quiz results yet</h3>
-                  <p>Start your first math quiz to see your performance here!</p>
-                </div>
-              </CardContent>
-            </Card>
+            <RecentActivities />
           </div>
         </div>
       )}
@@ -216,6 +212,10 @@ const QuizzesPage = () => {
           onStartNewQuiz={handleStartNewQuiz}
           onBackToQuizzes={handleBackToQuizzes}
         />
+      )}
+
+      {quizState === 'analytics' && (
+        <PerformanceAnalytics onClose={handleBackToQuizzes} />
       )}
     </div>
   );

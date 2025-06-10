@@ -38,7 +38,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
   ];
 
   return (
-    <div className="space-y-4 w-full overflow-hidden">
+    <div className="space-y-4 w-full">
       {/* Search Bar */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -50,9 +50,12 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
         />
       </div>
 
-      {/* Topics Grid with Horizontal Scroll */}
-      <div className="w-full overflow-hidden">
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
+      {/* Topics Grid with Proper Horizontal Scroll Container */}
+      <div className="w-full">
+        <div className="flex gap-4 overflow-x-auto pb-4" style={{
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#CBD5E0 #F7FAFC'
+        }}>
           {filteredTopics.map((topic, index) => {
             const isSelected = selectedTopics.includes(topic.topic_id);
             const colorClass = colors[index % colors.length];
