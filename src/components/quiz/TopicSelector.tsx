@@ -52,12 +52,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
 
       {/* Topics Grid with Horizontal Scroll */}
       <div className="relative">
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          <style jsx>{`
-            .scrollbar-hide::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
+        <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {filteredTopics.map((topic, index) => {
             const isSelected = selectedTopics.includes(topic.topic_id);
             const colorClass = colors[index % colors.length];
