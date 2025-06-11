@@ -3,14 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trophy, Calendar, Target, Loader2, TrendingUp, Award, Star, Clock } from 'lucide-react';
+import { Trophy, Calendar, Target, Loader2, TrendingUp, Award, Star, Clock, Eye, ChevronRight } from 'lucide-react';
 import { quizApi, HistoryResponse } from '@/services/quizApi';
 import { useToast } from '@/hooks/use-toast';
+import QuizReview from './QuizReview';
 
 const RecentActivities: React.FC = () => {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -32,6 +34,15 @@ const RecentActivities: React.FC = () => {
 
     fetchHistory();
   }, [toast]);
+
+  if (selectedSessionId) {
+    return (
+      <QuizReview 
+        sessionId={selectedSessionId} 
+        onBack={() => setSelectedSessionId(null)} 
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -104,14 +115,22 @@ const RecentActivities: React.FC = () => {
             <Clock className="h-4 w-4 lg:h-6 lg:w-6" />
           </div>
           Recent Quiz Activity
+          <Badge variant="secondary" className="bg-white/20 text-white border-white/30 text-xs">
+            {history.sessions.length} sessions
+          </Badge>
         </CardTitle>
+        <p className="text-blue-100 text-sm">Click on any activity to review detailed performance</p>
       </CardHeader>
       <CardContent className="p-4 lg:p-6">
         <div className="space-y-3 lg:space-y-4">
           {displayedSessions.map((session, index) => (
-            <div key={session.session_id} className="group hover:bg-gray-50 p-3 lg:p-4 rounded-lg transition-all duration-200 border border-gray-100 hover:border-blue-200 hover:shadow-md">
+            <div 
+              key={session.session_id} 
+              className="group hover:bg-gray-50 p-3 lg:p-4 rounded-lg transition-all duration-200 border border-gray-100 hover:border-blue-200 hover:shadow-md cursor-pointer"
+              onClick={() => setSelectedSessionId(session.session_id)}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center gap-3 lg:gap-4">
+                <div className="flex items-center gap-3 lg:gap-4 flex-1">
                   <div className="relative w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                     {getPerformanceIcon(session.accuracy)}
                     <div className="absolute -top-1 -right-1 w-4 h-4 lg:w-5 lg:h-5 bg-white rounded-full flex items-center justify-center">
@@ -133,16 +152,19 @@ const RecentActivities: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2">
-                  <Badge variant={getAccuracyBadgeVariant(session.accuracy)} className="text-xs font-semibold px-2 py-1">
-                    {session.accuracy.toFixed(1)}%
-                  </Badge>
-                  <div className="w-16 lg:w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full ${getAccuracyColor(session.accuracy)} transition-all duration-500`}
-                      style={{ width: `${session.accuracy}%` }}
-                    />
+                <div className="flex items-center gap-3 sm:gap-2">
+                  <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2">
+                    <Badge variant={getAccuracyBadgeVariant(session.accuracy)} className="text-xs font-semibold px-2 py-1">
+                      {session.accuracy.toFixed(1)}%
+                    </Badge>
+                    <div className="w-16 lg:w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full ${getAccuracyColor(session.accuracy)} transition-all duration-500`}
+                        style={{ width: `${session.accuracy}%` }}
+                      />
+                    </div>
                   </div>
+                  <ChevronRight className="h-4 w-4 lg:h-5 lg:w-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
                 </div>
               </div>
             </div>
@@ -157,6 +179,7 @@ const RecentActivities: React.FC = () => {
               className="hover:bg-blue-50 hover:border-blue-300"
               size="sm"
             >
+              <Eye className="h-4 w-4 mr-2" />
               {showAll ? 'Show Less' : `View All ${history.sessions.length} Activities`}
             </Button>
           </div>
