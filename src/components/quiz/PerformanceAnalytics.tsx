@@ -22,11 +22,6 @@ import {
   XCircle
 } from 'lucide-react';
 import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from '@/components/ui/chart';
-import { 
   BarChart, 
   Bar, 
   XAxis, 
@@ -35,10 +30,7 @@ import {
   ResponsiveContainer,
   PieChart as RechartsPieChart,
   Cell,
-  LineChart,
-  Line,
-  Area,
-  AreaChart
+  Pie
 } from 'recharts';
 import { quizApi, PerformanceResponse } from '@/services/quizApi';
 import { useToast } from '@/hooks/use-toast';
@@ -46,13 +38,6 @@ import { useToast } from '@/hooks/use-toast';
 interface PerformanceAnalyticsProps {
   onClose: () => void;
 }
-
-const chartConfig = {
-  accuracy: { label: "Accuracy", color: "#3b82f6" },
-  questions: { label: "Questions", color: "#10b981" },
-  correct: { label: "Correct", color: "#22c55e" },
-  wrong: { label: "Wrong", color: "#ef4444" }
-};
 
 const COLORS = ['#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
@@ -155,7 +140,12 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
 
   const chartData = performance.performance_by_topic
     .sort((a, b) => b.total_answered - a.total_answered)
-    .slice(0, 8);
+    .slice(0, 8)
+    .map(topic => ({
+      topic: topic.topic.charAt(0).toUpperCase() + topic.topic.slice(1),
+      accuracy: topic.accuracy_percent,
+      questions: topic.total_answered
+    }));
 
   const pieData = [
     { name: 'Correct', value: overallStats.totalCorrect, color: '#22c55e' },
@@ -171,6 +161,43 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
 
   const performanceLevel = getPerformanceLevel(overallAccuracy);
   const PerformanceIcon = performanceLevel.icon;
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium capitalize">{`${label}`}</p>
+          <p className="text-blue-600">
+            {`Accuracy: ${payload[0].value.toFixed(1)}%`}
+          </p>
+          {payload[1] && (
+            <p className="text-green-600">
+              {`Questions: ${payload[1].value}`}
+            </p>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const PieTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+          <p className="font-medium">{data.name}</p>
+          <p style={{ color: data.color }}>
+            {`Count: ${data.value}`}
+          </p>
+          <p className="text-gray-600">
+            {`${((data.value / (overallStats.totalCorrect + overallStats.totalWrong)) * 100).toFixed(1)}%`}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
@@ -256,7 +283,7 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Accuracy Distribution */}
+            {/* Answer Distribution Pie Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -265,18 +292,27 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="h-64">
+                <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <RechartsPieChart>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <RechartsPieChart data={pieData}>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
                         {pieData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
-                      </RechartsPieChart>
+                      </Pie>
+                      <PieTooltip />
                     </RechartsPieChart>
                   </ResponsiveContainer>
-                </ChartContainer>
+                </div>
               </CardContent>
             </Card>
 
@@ -289,9 +325,9 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ChartContainer config={chartConfig} className="h-64">
+                <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis 
                         dataKey="topic" 
@@ -300,12 +336,12 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
                         textAnchor="end"
                         height={80}
                       />
-                      <YAxis />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="accuracy_percent" fill="var(--color-accuracy)" radius={4} />
+                      <YAxis domain={[0, 100]} />
+                      <CustomTooltip />
+                      <Bar dataKey="accuracy" fill="#3b82f6" radius={4} />
                     </BarChart>
                   </ResponsiveContainer>
-                </ChartContainer>
+                </div>
               </CardContent>
             </Card>
           </div>
