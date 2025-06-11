@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,7 @@ import QuizResults from '@/components/quiz/QuizResults';
 import PerformanceAnalytics from '@/components/quiz/PerformanceAnalytics';
 import RecentActivities from '@/components/quiz/RecentActivities';
 import { SubmitResultResponse } from '@/services/quizApi';
-import { Trophy, Target, TrendingUp, Star, Brain, Users } from 'lucide-react';
+import { TrendingUp, Target, Star, Brain, Users, Trophy } from 'lucide-react';
 
 type QuizState = 'selection' | 'active' | 'results' | 'analytics';
 type QuizMode = 'single' | 'exam';
@@ -79,7 +78,7 @@ const QuizzesPage = () => {
       <div className="container max-w-6xl mx-auto py-8 px-4">
         {quizState === 'selection' && (
           <div className="space-y-8 max-w-full overflow-hidden">
-            {/* Hero Section */}
+            {/* New Hero Section with just title */}
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mb-4">
@@ -94,35 +93,8 @@ const QuizzesPage = () => {
               </p>
             </div>
 
-            {/* Quiz Mode Selection */}
-            <div className="w-full max-w-full overflow-hidden">
-              <Tabs defaultValue="single" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
-                  <TabsTrigger value="single" className="flex items-center gap-2">
-                    <Target className="h-4 w-4" />
-                    Single Topic
-                  </TabsTrigger>
-                  <TabsTrigger value="exam" className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Simulated Exam
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="single" className="mt-8 max-w-full overflow-hidden">
-                  <MathQuizSelector onQuizStart={handleQuizStart} />
-                </TabsContent>
-                
-                <TabsContent value="exam" className="mt-8 max-w-full overflow-hidden">
-                  <SimulatedExamSelector 
-                    topics={[]}
-                    onExamStart={handleExamStart} 
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+            {/* Feature Cards - replacing the main hero card */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
                 <CardContent className="p-6 text-center">
                   <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -152,6 +124,33 @@ const QuizzesPage = () => {
                   <p className="text-sm text-yellow-600">Test across multiple subjects</p>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* Quiz Mode Selection */}
+            <div className="w-full max-w-full overflow-hidden">
+              <Tabs defaultValue="single" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
+                  <TabsTrigger value="single" className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Single Topic
+                  </TabsTrigger>
+                  <TabsTrigger value="exam" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Simulated Exam
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="single" className="mt-8 max-w-full overflow-hidden">
+                  <MathQuizSelector onQuizStart={handleQuizStart} />
+                </TabsContent>
+                
+                <TabsContent value="exam" className="mt-8 max-w-full overflow-hidden">
+                  <SimulatedExamSelector 
+                    topics={[]}
+                    onExamStart={handleExamStart} 
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Performance Analytics Card */}

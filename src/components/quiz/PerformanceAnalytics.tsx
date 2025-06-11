@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { TrendingUp, Target, Award, Brain, Loader2 } from 'lucide-react';
+import { TrendingUp, Target, Award, Brain, Loader2, ArrowLeft } from 'lucide-react';
 import { quizApi, PerformanceResponse } from '@/services/quizApi';
 import { useToast } from '@/hooks/use-toast';
 
@@ -38,35 +38,48 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
 
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex justify-center items-center py-12">
-          <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p className="text-lg">Loading performance data...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="outline" onClick={onClose} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Quizzes
+          </Button>
+          <h1 className="text-2xl font-bold">Performance Analytics</h1>
+        </div>
+        
+        <Card>
+          <CardContent className="flex justify-center items-center py-12">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-lg">Loading performance data...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (!performance || performance.performance_by_topic.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-6 w-6" />
-            Performance Analytics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8">
-            <Brain className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No performance data yet</h3>
-            <p className="text-gray-600 mb-4">Complete some quizzes to see your performance analytics!</p>
-            <Button onClick={onClose}>Back to Quizzes</Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button variant="outline" onClick={onClose} className="flex items-center gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Quizzes
+          </Button>
+          <h1 className="text-2xl font-bold">Performance Analytics</h1>
+        </div>
+        
+        <Card>
+          <CardContent>
+            <div className="text-center py-8">
+              <Brain className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No performance data yet</h3>
+              <p className="text-gray-600 mb-4">Complete some quizzes to see your performance analytics!</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -85,54 +98,78 @@ const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({ onClose }) 
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="outline" onClick={onClose} className="flex items-center gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Back to Quizzes
+        </Button>
+        <h1 className="text-2xl font-bold">Performance Analytics</h1>
+      </div>
+
+      {/* Overall Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-6 text-center">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Target className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-blue-700">{overallStats.totalAnswered}</div>
+            <div className="text-sm text-blue-600">Total Questions</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-6 text-center">
+            <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Award className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-green-700">{overallStats.totalCorrect}</div>
+            <div className="text-sm text-green-600">Correct Answers</div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-6 text-center">
+            <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+              <TrendingUp className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-3xl font-bold text-purple-700">{overallAccuracy.toFixed(1)}%</div>
+            <div className="text-sm text-purple-600">Overall Accuracy</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Performance by Topic */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-6 w-6" />
-            Performance Analytics
-          </CardTitle>
+          <CardTitle className="text-xl">Performance by Topic</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">{overallStats.totalAnswered}</div>
-              <div className="text-sm text-gray-600">Total Questions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">{overallStats.totalCorrect}</div>
-              <div className="text-sm text-gray-600">Correct Answers</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">{overallAccuracy.toFixed(1)}%</div>
-              <div className="text-sm text-gray-600">Overall Accuracy</div>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Performance by Topic</h3>
-            {performance.performance_by_topic.map((topic) => (
-              <div key={topic.topic} className="border rounded-lg p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium capitalize">{topic.topic}</h4>
-                  <span className="text-sm text-gray-600">
-                    {topic.accuracy_percent.toFixed(1)}% accuracy
-                  </span>
+        <CardContent className="space-y-4">
+          {performance.performance_by_topic.map((topic) => (
+            <div key={topic.topic} className="p-4 bg-gray-50 rounded-lg border">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-medium capitalize text-lg">{topic.topic}</h4>
+                <span className="text-lg font-bold text-gray-700">
+                  {topic.accuracy_percent.toFixed(1)}%
+                </span>
+              </div>
+              <Progress value={topic.accuracy_percent} className="mb-3 h-2" />
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="font-semibold text-gray-700">{topic.total_answered}</div>
+                  <div className="text-gray-500">Total</div>
                 </div>
-                <Progress value={topic.accuracy_percent} className="mb-2" />
-                <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
-                  <div>Total: {topic.total_answered}</div>
-                  <div>Correct: {topic.correct}</div>
-                  <div>Wrong: {topic.wrong}</div>
+                <div className="text-center">
+                  <div className="font-semibold text-green-600">{topic.correct}</div>
+                  <div className="text-gray-500">Correct</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-semibold text-red-600">{topic.wrong}</div>
+                  <div className="text-gray-500">Wrong</div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-6 flex gap-4">
-            <Button onClick={onClose} variant="outline">
-              Back to Quizzes
-            </Button>
-          </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
