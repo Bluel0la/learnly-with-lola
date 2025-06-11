@@ -2,13 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Calendar, Target, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Trophy, Calendar, Target, Loader2, TrendingUp, Award, Star } from 'lucide-react';
 import { quizApi, HistoryResponse } from '@/services/quizApi';
 import { useToast } from '@/hooks/use-toast';
 
 const RecentActivities: React.FC = () => {
   const [history, setHistory] = useState<HistoryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,11 +35,11 @@ const RecentActivities: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Card className="bg-gradient-to-r from-gray-50 to-gray-100">
+      <Card className="bg-white shadow-lg border-0">
         <CardContent className="p-8">
           <div className="text-center text-gray-500">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-            <p>Loading recent activities...</p>
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-500" />
+            <p className="text-lg font-medium">Loading recent activities...</p>
           </div>
         </CardContent>
       </Card>
@@ -46,14 +48,28 @@ const RecentActivities: React.FC = () => {
 
   if (!history || history.sessions.length === 0) {
     return (
-      <Card className="bg-gradient-to-r from-gray-50 to-gray-100">
+      <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0 shadow-lg">
         <CardContent className="p-8">
-          <div className="text-center text-gray-500">
-            <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Trophy className="h-8 w-8 text-gray-400" />
+          <div className="text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Trophy className="h-10 w-10 text-white" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No quiz results yet</h3>
-            <p>Start your first math quiz to see your performance here!</p>
+            <h3 className="text-2xl font-bold mb-3 text-gray-800">Start Your Quiz Journey!</h3>
+            <p className="text-gray-600 text-lg mb-6">Complete your first math quiz to see your progress here</p>
+            <div className="flex justify-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <Star className="h-4 w-4" />
+                <span>Track Progress</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Award className="h-4 w-4" />
+                <span>Earn Achievements</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <TrendingUp className="h-4 w-4" />
+                <span>Improve Skills</span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -72,40 +88,83 @@ const RecentActivities: React.FC = () => {
     return 'destructive';
   };
 
+  const getPerformanceIcon = (accuracy: number) => {
+    if (accuracy >= 80) return <Trophy className="h-5 w-5 text-yellow-500" />;
+    if (accuracy >= 60) return <Award className="h-5 w-5 text-blue-500" />;
+    return <Target className="h-5 w-5 text-gray-500" />;
+  };
+
+  const displayedSessions = showAll ? history.sessions : history.sessions.slice(0, 5);
+
   return (
-    <Card className="bg-gradient-to-r from-gray-50 to-gray-100">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-6 w-6" />
-          Recent Activity
+    <Card className="bg-white shadow-lg border-0">
+      <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
+        <CardTitle className="flex items-center gap-3 text-xl">
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            <Trophy className="h-6 w-6" />
+          </div>
+          Recent Quiz Activity
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {history.sessions.slice(0, 5).map((session) => (
-          <div key={session.session_id} className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <Target className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-medium capitalize">{session.topic}</h4>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  <span>{new Date(session.date).toLocaleDateString()}</span>
-                  <span>•</span>
-                  <span>{session.total_questions} questions</span>
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          {displayedSessions.map((session, index) => (
+            <div key={session.session_id} className="group hover:bg-gray-50 p-4 rounded-lg transition-all duration-200 border border-gray-100 hover:border-blue-200 hover:shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center relative">
+                    {getPerformanceIcon(session.accuracy)}
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center">
+                      <span className="text-xs font-bold text-gray-700">#{index + 1}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg capitalize text-gray-800">{session.topic}</h4>
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>{new Date(session.date).toLocaleDateString()}</span>
+                      </div>
+                      <span>•</span>
+                      <div className="flex items-center gap-1">
+                        <Target className="h-4 w-4" />
+                        <span>{session.total_questions} questions</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <Badge variant={getAccuracyBadgeVariant(session.accuracy)} className="text-sm font-semibold px-3 py-1">
+                    {session.accuracy.toFixed(1)}%
+                  </Badge>
+                  <div className="mt-2 w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${getAccuracyColor(session.accuracy)} transition-all duration-500`}
+                      style={{ width: `${session.accuracy}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
-            <Badge variant={getAccuracyBadgeVariant(session.accuracy)}>
-              {session.accuracy.toFixed(1)}%
-            </Badge>
-          </div>
-        ))}
+          ))}
+        </div>
         
         {history.sessions.length > 5 && (
-          <div className="text-center text-sm text-gray-600 pt-2">
-            Showing 5 most recent activities
+          <div className="mt-6 text-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowAll(!showAll)}
+              className="hover:bg-blue-50 hover:border-blue-300"
+            >
+              {showAll ? 'Show Less' : `View All ${history.sessions.length} Activities`}
+            </Button>
+          </div>
+        )}
+        
+        {displayedSessions.length === 0 && (
+          <div className="text-center text-gray-500 py-8">
+            <Target className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+            <p>No recent activities found</p>
           </div>
         )}
       </CardContent>

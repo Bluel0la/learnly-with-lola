@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Search, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Search, Check, Eye } from 'lucide-react';
 import { MathTopic } from '@/services/quizApi';
 
 interface TopicSelectorProps {
@@ -19,10 +20,13 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
   multiSelect = false 
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const filteredTopics = topics.filter(topic =>
     topic.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const displayedTopics = showAll ? filteredTopics : filteredTopics.slice(0, 8);
 
   const colors = [
     'from-red-400 to-red-600',
@@ -38,7 +42,7 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
   ];
 
   return (
-    <div className="space-y-4 w-full max-w-full overflow-hidden">
+    <div className="space-y-4 w-full">
       {/* Search Bar */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -46,14 +50,14 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
           placeholder="Search topics..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
+          className="pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 border-gray-300"
         />
       </div>
 
-      {/* Topics Grid - Changed to responsive grid layout */}
-      <div className="w-full max-w-full overflow-hidden">
+      {/* Topics Grid */}
+      <div className="w-full">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredTopics.map((topic, index) => {
+          {displayedTopics.map((topic, index) => {
             const isSelected = selectedTopics.includes(topic.topic_id);
             const colorClass = colors[index % colors.length];
             
@@ -86,6 +90,20 @@ const TopicSelector: React.FC<TopicSelectorProps> = ({
             );
           })}
         </div>
+
+        {/* View More Button */}
+        {filteredTopics.length > 8 && (
+          <div className="mt-6 text-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowAll(!showAll)}
+              className="flex items-center gap-2"
+            >
+              <Eye className="h-4 w-4" />
+              {showAll ? 'Show Less' : `View More (${filteredTopics.length - 8} more topics)`}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
