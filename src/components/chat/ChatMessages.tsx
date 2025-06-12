@@ -228,7 +228,7 @@ const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesPr
                             {formatTime(message.timestamp)}
                           </span>
                         </div>
-                        <div className="text-left w-full overflow-hidden flex items-center justify-center">
+                        <div className="text-left w-full overflow-hidden flex items-center justify-center debug-message-parent" style={{ border: '2px solid red', background: 'rgba(255,0,0,0.05)' }}>
                           {hasLaTeX(message.content) ? (
                             <LaTeXRenderer content={message.content} />
                           ) : (
