@@ -132,15 +132,15 @@
 
 @layer components {
   .academic-card {
-    @apply bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 md:p-6;
+    @apply bg-card rounded-xl shadow-md hover:shadow-lg transition-shadow p-4 md:p-6;
   }
   
   .chat-message-user {
-    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] mb-3 overflow-hidden;
+    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] break-words overflow-wrap-anywhere;
   }
   
   .chat-message-ai {
-    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] mb-3 overflow-hidden;
+    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] break-words overflow-wrap-anywhere;
   }
   
   .chat-message-math {
@@ -152,16 +152,16 @@
   }
   
   .btn-smart {
-    @apply inline-flex items-center rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors;
+    @apply inline-flex items-center rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors;
   }
   
   /* New styles for ChatGPT-like interface */
   .chat-input {
-    @apply w-full p-2 md:p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary;
+    @apply w-full p-2 md:p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring;
   }
   
   .action-button {
-    @apply inline-flex items-center justify-center p-1.5 md:p-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-100;
+    @apply inline-flex items-center justify-center p-1.5 md:p-2 rounded-full bg-background border border-border text-muted-foreground hover:bg-muted;
   }
 
   /* LaTeX and Math specific styles with consistent fonts */

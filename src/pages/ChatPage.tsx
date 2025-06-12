@@ -9,11 +9,11 @@ type ChatPageProps = {
 
 const ChatPage = ({ sessionId }: ChatPageProps) => {
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex-1 min-h-0">
+    <div className="flex flex-col h-full w-full overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         <ChatMessages sessionId={sessionId} />
       </div>
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 border-t border-border bg-background">
         <ChatInput />
       </div>
     </div>
