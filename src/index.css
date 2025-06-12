@@ -136,11 +136,11 @@
   }
   
   .chat-message-user {
-    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] break-words overflow-wrap-anywhere;
+    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] break-words;
   }
   
   .chat-message-ai {
-    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] break-words overflow-wrap-anywhere;
+    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] break-words;
   }
   
   .chat-message-math {
@@ -361,5 +361,13 @@
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   .border {
     border-width: 0.5px;
+  }
+}
+
+/* Custom overflow-wrap utility for chat messages */
+@layer utilities {
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
