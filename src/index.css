@@ -177,7 +177,7 @@
   .math-inline {
     @apply inline-block;
     max-width: 100%;
-    overflow-wrap: break-word;
+    /**overflow-wrap: break-word;**/
     word-wrap: break-word;
     font-family: inherit;
   }
