@@ -78,7 +78,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
 
   return (
     <div
-      className="w-full text-left leading-relaxed whitespace-normal"
+      className="w-full text-left leading-relaxed whitespace-normal latex-content"
       dangerouslySetInnerHTML={{ __html: processContent(content) }}
     />
   );
