@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useParams } from 'react-router-dom';
@@ -185,78 +186,74 @@ const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesPr
   const userName = profile?.first_name || 'there';
 
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex-1 overflow-hidden">
-        <ScrollArea className="h-full">
-          <div className="p-4 space-y-4 min-h-full">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-64">
-                <div className="animate-pulse text-muted-foreground">Loading conversation...</div>
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center min-h-[60vh]">
-                <div className="text-center text-muted-foreground max-w-lg">
-                  <div className="text-4xl font-serif font-bold text-foreground mb-4 flex items-center justify-center gap-2">
-                    <RotatingText
-                      texts={greetings}
-                      rotationInterval={2500}
-                      staggerDuration={0.05}
-                      mainClassName="text-4xl font-serif font-bold"
-                      transition={{ type: "spring", damping: 20, stiffness: 200 }}
-                      splitBy="words"
-                    />
-                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">
-                      {userName}
-                    </span>
-                  </div>
-                  <p className="text-lg text-muted-foreground mb-4">
-                    Ready to study something new today?
-                  </p>
+    <div className="flex flex-col h-full max-w-full">
+      <ScrollArea className="flex-1 h-full">
+        <div className="p-4 max-w-full">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-pulse text-gray-500">Loading conversation...</div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="text-center text-gray-500">
+                <div className="text-4xl font-serif font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
+                  <RotatingText
+                    texts={greetings}
+                    rotationInterval={2500}
+                    staggerDuration={0.05}
+                    mainClassName="text-4xl font-serif font-bold"
+                    transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                    splitBy="words"
+                  />
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">
+                    {userName}
+                  </span>
                 </div>
+                <p className="text-lg text-gray-600 mb-4">
+                  Ready to study something new today?
+                </p>
               </div>
-            ) : (
-              <>
-                <div className="max-w-4xl mx-auto space-y-4 h-full">
-                  {messages.map((message) => (
-                    <div key={message.id} className="flex flex-col w-full">
-                      <div className={`${getMessageClassName(message)} w-full`}>
-                        <div className="mb-2 flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">
-                            {message.type === 'user' ? 'You' : 'AI Assistant'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(message.timestamp)}
-                          </span>
-                        </div>
-                        <div className="text-left w-full overflow-hidden flex items-center justify-center min-h-[8rem]">
-                          {hasLaTeX(message.content) ? (
-                            <LaTeXRenderer content={message.content} />
-                          ) : (
-                            <div className="whitespace-pre-line break-words w-full">
-                              {message.content}
-                            </div>
-                          )}
-                        </div>
-                        {message.type === 'ai' && (
-                          <MessageActions
-                            content={message.content}
-                            originalPrompt={message.originalPrompt || ''}
-                            messageId={message.id}
-                            onCopy={handleCopy}
-                            onRedo={handleRedo}
-                            onEdit={handleEdit}
-                          />
-                        )}
-                      </div>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className="flex flex-col max-w-full">
+                  <div className={`${getMessageClassName(message)} max-w-full word-wrap break-words`}>
+                    <div className="mb-1 flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        {message.type === 'user' ? 'You' : 'AI Assistant'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatTime(message.timestamp)}
+                      </span>
                     </div>
-                  ))}
+                    <div className="text-left max-w-full overflow-hidden">
+                      {hasLaTeX(message.content) ? (
+                        <LaTeXRenderer content={message.content} />
+                      ) : (
+                        <div className="whitespace-pre-line break-words max-w-full">
+                          {message.content}
+                        </div>
+                      )}
+                    </div>
+                    {message.type === 'ai' && (
+                      <MessageActions
+                        content={message.content}
+                        originalPrompt={message.originalPrompt || ''}
+                        messageId={message.id}
+                        onCopy={handleCopy}
+                        onRedo={handleRedo}
+                        onEdit={handleEdit}
+                      />
+                    )}
+                  </div>
                 </div>
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 };

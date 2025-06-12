@@ -26,7 +26,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Navbar />
             </div>
           </header>
-          <main className="flex-1 overflow-y-scroll">
+          <main className="flex-1 overflow-y-auto">
             <div className="h-full min-h-0">
               {children}
             </div>
