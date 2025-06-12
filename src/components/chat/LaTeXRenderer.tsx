@@ -1,3 +1,4 @@
+
 import React from "react";
 import "katex/dist/katex.min.css";
 import katex from "katex";
@@ -77,8 +78,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
 
   return (
     <div
-      className="w-full text-left leading-relaxed whitespace-normal latex-content debug-latex-root"
-      style={{ border: '2px solid blue', background: 'rgba(0,0,255,0.05)' }}
+      className="w-full text-left leading-relaxed whitespace-normal latex-content"
       dangerouslySetInnerHTML={{ __html: processContent(content) }}
     />
   );
