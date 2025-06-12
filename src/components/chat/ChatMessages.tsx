@@ -15,6 +15,14 @@ interface ChatMessagesProps {
   sessionId?: string;
 }
 
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  original_prompt?: string;
+}
+
 const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
   const { toast } = useToast();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -24,11 +32,38 @@ const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
 
   const { data: messages = [], isLoading, error } = useQuery({
     queryKey: ['chat-messages', sessionId],
-    queryFn: () => sessionId ? chatApi.getMessages(sessionId) : Promise.resolve([]),
+    queryFn: () => sessionId ? chatApi.getSessionMessages(sessionId) : Promise.resolve([]),
     enabled: !!sessionId,
     refetchInterval: 2000, // Poll every 2 seconds for new messages
     refetchIntervalInBackground: true
   });
+
+  // Transform API response to match our Message interface
+  const transformedMessages: Message[] = React.useMemo(() => {
+    const result: Message[] = [];
+    
+    messages.forEach((msg: any) => {
+      // Add user message
+      result.push({
+        id: `user-${msg.timestamp}`,
+        role: 'user',
+        content: msg.query,
+        timestamp: msg.timestamp,
+        original_prompt: msg.query
+      });
+      
+      // Add assistant response
+      result.push({
+        id: `assistant-${msg.timestamp}`,
+        role: 'assistant',
+        content: msg.response,
+        timestamp: msg.timestamp,
+        original_prompt: msg.query
+      });
+    });
+    
+    return result;
+  }, [messages]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -38,7 +73,7 @@ const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages]);
+  }, [transformedMessages]);
 
   const handleCopy = async (content: string) => {
     try {
@@ -61,7 +96,10 @@ const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
     
     try {
       // Send the original prompt again
-      await chatApi.sendMessage(sessionId, originalPrompt);
+      await chatApi.sendMessage({
+        prompt: originalPrompt,
+        chat_id: sessionId
+      });
       
       // Invalidate and refetch messages
       queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
@@ -89,7 +127,10 @@ const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
     
     try {
       // Send the edited message
-      await chatApi.sendMessage(sessionId, editingContent);
+      await chatApi.sendMessage({
+        prompt: editingContent,
+        chat_id: sessionId
+      });
       
       // Invalidate and refetch messages
       queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
@@ -142,11 +183,11 @@ const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
   return (
     <ScrollArea className="h-full" ref={scrollAreaRef}>
       <div className="p-4 md:p-6 max-w-4xl mx-auto">
-        {!sessionId || messages.length === 0 ? (
+        {!sessionId || transformedMessages.length === 0 ? (
           <ChatHero />
         ) : (
           <div className="space-y-6">
-            {messages.map((message) => (
+            {transformedMessages.map((message) => (
               <div key={message.id} className="group">
                 <div className={`flex gap-3 md:gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
                   <Avatar className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10">

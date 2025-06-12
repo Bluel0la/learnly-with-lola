@@ -34,7 +34,7 @@ const LoginPage = () => {
     setIsLoginLoading(true);
     
     try {
-      await authApi.login(email, password);
+      await authApi.login({ email, password });
       
       const redirectPath = location.state?.from || '/chat';
       navigate(redirectPath);
@@ -72,8 +72,8 @@ const LoginPage = () => {
       await authApi.signup({
         email: signupEmail,
         password: signupPassword,
-        first_name: firstname,
-        last_name: lastname
+        firstname: firstname,
+        lastname: lastname
       });
       
       toast({

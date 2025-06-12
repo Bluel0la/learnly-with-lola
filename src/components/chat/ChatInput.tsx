@@ -13,6 +13,7 @@ const ChatInput = () => {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -30,13 +31,16 @@ const ChatInput = () => {
       
       // If no session, create a new one and navigate to it
       if (!currentSessionId) {
-        const newSession = await chatApi.createSession();
-        currentSessionId = newSession.id;
+        const newSession = await chatApi.startSession({ chat_title: message.slice(0, 50) || 'New Chat' });
+        currentSessionId = newSession.chat_id;
         navigate(`/chat/${currentSessionId}`, { replace: true });
       }
 
       // Send the message
-      await chatApi.sendMessage(currentSessionId, message, uploadedImages);
+      await chatApi.sendMessage({
+        prompt: message,
+        chat_id: currentSessionId
+      });
 
       // Clear the input and images
       setMessage('');
@@ -79,8 +83,9 @@ const ChatInput = () => {
     textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
   };
 
-  const handleImageUpload = (imageUrl: string) => {
-    setUploadedImages(prev => [...prev, imageUrl]);
+  const handleTextExtracted = (extractedText: string) => {
+    setMessage(prev => prev + (prev ? '\n\n' : '') + extractedText);
+    setShowImageUpload(false);
   };
 
   const removeImage = (indexToRemove: number) => {
@@ -122,7 +127,15 @@ const ChatInput = () => {
               disabled={isLoading}
             />
             <div className="absolute right-2 bottom-2">
-              <ImageUpload onImageUpload={handleImageUpload} />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowImageUpload(true)}
+                className="h-8 w-8"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           
@@ -144,6 +157,13 @@ const ChatInput = () => {
           Press Enter to send, Shift + Enter for new line
         </div>
       </div>
+
+      {showImageUpload && (
+        <ImageUpload 
+          onTextExtracted={handleTextExtracted}
+          onClose={() => setShowImageUpload(false)}
+        />
+      )}
     </div>
   );
 };
