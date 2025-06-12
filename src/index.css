@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -135,11 +136,11 @@
   }
   
   .chat-message-user {
-    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] mb-4 overflow-hidden;
+    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] mb-3 overflow-hidden;
   }
   
   .chat-message-ai {
-    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] mb-4 overflow-hidden;
+    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] mb-3 overflow-hidden;
   }
   
   .chat-message-math {
@@ -163,57 +164,51 @@
     @apply inline-flex items-center justify-center p-1.5 md:p-2 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-gray-100;
   }
 
-  /* LaTeX and Math specific styles - LEFT ALIGNED */
-  .math-display {
-    @apply my-4 overflow-x-auto overflow-y-hidden;
-    text-align: left; /* Changed from center to left */
-    max-width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  /* LaTeX and Math specific styles with consistent fonts */
+  .latex-content {
+    font-family: Inter, sans-serif;
   }
 
+  .math-display {
+    @apply my-3 w-full text-left;
+    overflow-x: auto;
+    font-family: inherit;
+  }
+  
   .math-inline {
     @apply inline-block;
     max-width: 100%;
     overflow-wrap: break-word;
     word-wrap: break-word;
+    font-family: inherit;
   }
 
-
-  /* KaTeX overrides for better display and left alignment */
-  .katex {
-    font-size: 1.1em;
-    line-height: 1.2;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  /* KaTeX overrides for consistent styling */
+  .latex-content .katex {
+    font-family: inherit !important;
+    font-size: 1em !important;
+    line-height: 1.5 !important;
+    color: inherit !important;
   }
 
-  .katex-display {
-    margin: 1em 0;
-    text-align: left; /* Changed from center to left */
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 0.5em 0;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  .latex-content .katex-display {
+    margin: 0.75rem 0 !important;
+    text-align: left !important;
+    font-family: inherit !important;
   }
 
-  .katex-display > .katex {
-    display: inline-block;
-    white-space: normal; /* Changed from nowrap to allow wrapping */
-    max-width: 100%;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  .latex-content .katex * {
+    font-family: inherit !important;
   }
 
   /* Ensure chat messages handle math content properly */
-  .chat-message-user .katex-display,
-  .chat-message-ai .katex-display {
-    margin: 0.5em -0.5em;
-    padding: 0.5em;
+  .chat-message-user .math-display,
+  .chat-message-ai .math-display {
+    margin: 0.5rem -0.5rem;
+    padding: 0.5rem;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 0.5em;
-    text-align: left; /* Ensure left alignment in chat bubbles */
+    border-radius: 0.5rem;
+    text-align: left;
   }
 
   /* Flashcard animations */
@@ -233,32 +228,6 @@
 
   .flashcard-back {
     transform: rotateY(180deg);
-  }
-  /* Latex Display */
-  .math-display {
-  @apply my-3 w-full text-left;
-  overflow-x: auto;
-  }
-  
-  .math-display .katex-display {
-    margin: 0 !important;
-    text-align: left !important;
-  }
-  
-  .math-display .katex {
-    font-size: 1.1em;
-    text-align: left !important;
-  }
-  
-  .math-inline .katex {
-    font-size: 1em !important;
-  }
-  
-  .katex {
-    font-size: inherit !important;
-    max-width: 100% !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
   }
   
   /* Responsive container utilities */
@@ -353,29 +322,21 @@
     margin-top: 1rem;
   }
 
-  /* Mobile LaTeX adjustments - LEFT ALIGNED */
-  .katex {
-    font-size: 0.9em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+  /* Mobile LaTeX adjustments */
+  .latex-content .katex {
+    font-size: 0.9em !important;
   }
 
-  .katex-display {
-    font-size: 0.85em;
-    margin: 0.5em -1em;
-    padding: 0.5em 1em;
+  .latex-content .katex-display {
+    font-size: 0.9em !important;
+    margin: 0.5rem -1rem !important;
+    padding: 0.5rem 1rem !important;
     overflow-x: auto;
-    text-align: left; /* Ensure left alignment on mobile */
-    word-wrap: break-word;
-    overflow-wrap: break-word;
   }
 
   .math-display {
-    margin: 0.5em -1em;
-    padding: 0.5em 1em;
-    text-align: left; /* Ensure left alignment on mobile */
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+    margin: 0.5rem -1rem;
+    padding: 0.5rem 1rem;
   }
 }
 

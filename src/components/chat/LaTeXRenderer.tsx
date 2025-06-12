@@ -16,7 +16,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
         errorColor: "#cc0000",
         strict: "warn",
         trust: true,
-        fleqn: displayMode, // Left-align display math
+        fleqn: displayMode,
       });
     } catch (error) {
       console.error("LaTeX render error:", error);
@@ -32,7 +32,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
       /\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}/g,
       (match, content) => {
         const rendered = renderLatex(match, true);
-        return `<div class="math-display my-4 overflow-x-auto">${rendered}</div>`;
+        return `<div class="math-display">${rendered}</div>`;
       }
     );
 
@@ -44,7 +44,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
     // Handle display math blocks $$...$$
     processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, mathContent) => {
       const rendered = renderLatex(mathContent.trim(), true);
-      return `<div class="math-display my-4 overflow-x-auto">${rendered}</div>`;
+      return `<div class="math-display">${rendered}</div>`;
     });
 
     // Handle inline math $...$
@@ -78,7 +78,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
 
   return (
     <div
-      className="w-full text-left leading-relaxed whitespace-normal"
+      className="w-full text-left leading-relaxed whitespace-normal latex-content"
       dangerouslySetInnerHTML={{ __html: processContent(content) }}
     />
   );

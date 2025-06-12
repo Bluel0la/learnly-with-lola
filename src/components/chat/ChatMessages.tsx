@@ -188,7 +188,7 @@ const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesPr
   return (
     <div className="flex flex-col h-full max-w-full">
       <ScrollArea className="flex-1 h-full">
-        <div className="p-4 max-w-full">
+        <div className="p-4 pb-8 max-w-full">
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
               <div className="animate-pulse text-gray-500">Loading conversation...</div>
@@ -215,7 +215,7 @@ const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesPr
               </div>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto space-y-4">
+            <div className="max-w-4xl mx-auto space-y-2">
               {messages.map((message) => (
                 <div key={message.id} className="flex flex-col max-w-full">
                   <div className={`${getMessageClassName(message)} max-w-full word-wrap break-words`}>
