@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -117,18 +116,10 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
         // Get next adaptive batch
         await getNextAdaptiveBatch(5); // Get 5 more questions
       } else {
-        // Continue with adaptive learning or complete quiz
-        const shouldContinue = window.confirm(
-          `Current batch score: ${response.score_percent}%. Would you like to continue with more questions?`
-        );
-        
-        if (shouldContinue) {
-          setTotalQuestionsAnswered(prev => prev + answers.length);
-          setPreviousScore(response.score_percent);
-          await getNextAdaptiveBatch(5);
-        } else {
-          onQuizComplete(response);
-        }
+        // Directly complete the quiz and show results
+        setTotalQuestionsAnswered(prev => prev + answers.length);
+        setPreviousScore(response.score_percent);
+        onQuizComplete(response);
       }
     } catch (error) {
       console.error('Failed to submit answers:', error);
@@ -345,7 +336,7 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
                 ) : (
                   <>
                     <Trophy className="h-5 w-5" />
-                    {quizPhase === 'initial-assessment' ? 'Complete Assessment' : 'Submit Batch'}
+                    {quizPhase === 'initial-assessment' ? 'Complete Assessment' : 'Submit'}
                   </>
                 )}
               </div>
