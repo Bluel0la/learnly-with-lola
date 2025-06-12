@@ -113,8 +113,6 @@ const ActiveMathQuiz: React.FC<ActiveMathQuizProps> = ({
           description: `Score: ${response.score_percent}%. Starting adaptive questions at ${response.next_difficulty} level.`,
         });
 
-        // Get next adaptive batch
-        await getNextAdaptiveBatch(5); // Get 5 more questions
       } else {
         // Directly complete the quiz and show results
         setTotalQuestionsAnswered(prev => prev + answers.length);
