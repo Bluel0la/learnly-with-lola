@@ -1,161 +1,170 @@
 
 import React, { useState } from 'react';
-import { useSearchParams, Navigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { authApi } from '@/services/authApi';
 import LoginForm from '@/components/auth/LoginForm';
 import SignupForm from '@/components/auth/SignupForm';
-import { useToast } from '@/hooks/use-toast';
-import { authApi, SignupRequest } from '@/services/api';
-import { secureTokenStorage } from '@/services/secureTokenStorage';
 
 const LoginPage = () => {
-  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  // Login state
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoginLoading, setIsLoginLoading] = useState(false);
   
-  // Signup form state
-  const [signupFirstname, setSignupFirstname] = useState('');
-  const [signupLastname, setSignupLastname] = useState('');
+  // Signup state
+  const [firstname, setFirstname] = useState('');
+  const [lastname, setLastname] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSignupLoading, setIsSignupLoading] = useState(false);
   
-  // Check if user is already authenticated
-  if (secureTokenStorage.getToken()) {
-    return <Navigate to="/chat" replace />;
-  }
-
-  const defaultTab = searchParams.get('tab') === 'signup' ? 'signup' : 'login';
+  // Get the current tab from URL path
+  const currentTab = location.pathname === '/signup' ? 'signup' : 'login';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsLoginLoading(true);
+    
     try {
-      const response = await authApi.login({ email: loginEmail, password: loginPassword });
+      await authApi.login(email, password);
       
-      secureTokenStorage.setToken(response.access_token);
+      const redirectPath = location.state?.from || '/chat';
+      navigate(redirectPath);
       
       toast({
-        title: "Success",
-        description: "Logged in successfully!"
+        title: "Welcome back!",
+        description: "You've been successfully logged in."
       });
-      
-      window.location.href = '/chat';
     } catch (error) {
-      console.error('Login error:', error);
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to log in",
+        title: "Login failed",
+        description: error instanceof Error ? error.message : "Invalid email or password",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsLoginLoading(false);
     }
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (signupPassword !== confirmPassword) {
       toast({
-        title: "Error",
-        description: "Passwords don't match",
+        title: "Passwords don't match",
+        description: "Please make sure your passwords match",
         variant: "destructive"
       });
       return;
     }
+
+    setIsSignupLoading(true);
     
-    setIsLoading(true);
     try {
-      const signupData: SignupRequest = {
-        firstname: signupFirstname,
-        lastname: signupLastname,
+      await authApi.signup({
         email: signupEmail,
-        password: signupPassword
-      };
-      
-      await authApi.signup(signupData);
-      
-      toast({
-        title: "Success",
-        description: "Account created successfully! Please log in."
+        password: signupPassword,
+        first_name: firstname,
+        last_name: lastname
       });
       
-      // Switch to login tab after successful signup
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'login');
-      window.history.pushState({}, '', url.toString());
-    } catch (error) {
-      console.error('Signup error:', error);
       toast({
-        title: "Error",
+        title: "Account created successfully!",
+        description: "Please check your email to verify your account, then login below."
+      });
+      
+      // Clear signup form
+      setSignupEmail('');
+      setSignupPassword('');
+      setConfirmPassword('');
+      setFirstname('');
+      setLastname('');
+      
+      // Redirect to login tab
+      navigate('/login');
+      
+    } catch (error) {
+      toast({
+        title: "Signup failed",
         description: error instanceof Error ? error.message : "Failed to create account",
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsSignupLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Welcome to Learnly
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Your AI-powered learning companion
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-serif font-bold text-primary mb-2">Learnly</h1>
+          <p className="text-gray-600">Your AI Learning Assistant</p>
         </div>
         
         <Card>
-          <CardHeader>
-            <CardTitle className="text-center">Get Started</CardTitle>
-            <CardDescription className="text-center">
-              Sign in to your account or create a new one
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">
+              {currentTab === 'login' ? 'Welcome Back' : 'Create Account'}
+            </CardTitle>
+            <CardDescription>
+              {currentTab === 'login' 
+                ? 'Sign in to your account to continue learning' 
+                : 'Join thousands of learners using AI to accelerate their studies'
+              }
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue={defaultTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="login" className="space-y-4">
-                <LoginForm 
-                  email={loginEmail}
-                  setEmail={setLoginEmail}
-                  password={loginPassword}
-                  setPassword={setLoginPassword}
-                  handleLogin={handleLogin}
-                  isLoginLoading={isLoading}
-                />
-              </TabsContent>
-              
-              <TabsContent value="signup" className="space-y-4">
-                <SignupForm 
-                  firstname={signupFirstname}
-                  setFirstname={setSignupFirstname}
-                  lastname={signupLastname}
-                  setLastname={setSignupLastname}
-                  email={signupEmail}
-                  setEmail={setSignupEmail}
-                  password={signupPassword}
-                  setPassword={setSignupPassword}
-                  confirmPassword={confirmPassword}
-                  setConfirmPassword={setConfirmPassword}
-                  handleSignUp={handleSignup}
-                  isSignupLoading={isLoading}
-                />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
+          
+          <Tabs value={currentTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mx-6 mb-4">
+              <TabsTrigger value="login" asChild>
+                <Link to="/login">Login</Link>
+              </TabsTrigger>
+              <TabsTrigger value="signup" asChild>
+                <Link to="/signup">Sign Up</Link>
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login">
+              <LoginForm
+                email={email}
+                setEmail={setEmail}
+                password={password}
+                setPassword={setPassword}
+                handleLogin={handleLogin}
+                isLoginLoading={isLoginLoading}
+              />
+            </TabsContent>
+            
+            <TabsContent value="signup">
+              <SignupForm
+                firstname={firstname}
+                setFirstname={setFirstname}
+                lastname={lastname}
+                setLastname={setLastname}
+                email={signupEmail}
+                setEmail={setSignupEmail}
+                password={signupPassword}
+                setPassword={setSignupPassword}
+                confirmPassword={confirmPassword}
+                setConfirmPassword={setConfirmPassword}
+                handleSignUp={handleSignUp}
+                isSignupLoading={isSignupLoading}
+              />
+            </TabsContent>
+          </Tabs>
+          
+          <div className="p-6 pt-0 text-center text-sm text-gray-500">
+            By continuing, you agree to our Terms of Service and Privacy Policy
+          </div>
         </Card>
       </div>
     </div>
