@@ -216,7 +216,7 @@ const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesPr
               </div>
             ) : (
               <>
-                <div className="max-w-4xl mx-auto space-y-4">
+                <div className="max-w-4xl mx-auto space-y-4 h-full">
                   {messages.map((message) => (
                     <div key={message.id} className="flex flex-col w-full">
                       <div className={`${getMessageClassName(message)} w-full`}>

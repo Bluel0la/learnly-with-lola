@@ -183,7 +183,7 @@
   }
 
   /* KaTeX overrides for consistent styling */
-  .latex-content .katex {
+  /**.latex-content .katex {
     font-family: inherit !important;
     font-size: 1em !important;
     line-height: 1.5 !important;
@@ -200,7 +200,7 @@
   .latex-content .katex * {
     font-family: inherit !important;
   }
-
+**/
   /* Ensure chat messages handle math content properly */
   .chat-message-user .math-display,
   .chat-message-ai .math-display {
