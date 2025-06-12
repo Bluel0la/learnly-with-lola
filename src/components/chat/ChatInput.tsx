@@ -12,8 +12,6 @@ const ChatInput = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [extractedText, setExtractedText] = useState('');
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const { toast } = useToast();
   const params = useParams();
   const navigate = useNavigate();
@@ -24,8 +22,6 @@ const ChatInput = () => {
     const handleEditMessage = (event: CustomEvent) => {
       const { messageId, originalPrompt } = event.detail;
       setMessage(originalPrompt);
-      setIsEditMode(true);
-      setEditingMessageId(messageId);
     };
 
     window.addEventListener('editMessage', handleEditMessage as EventListener);
@@ -53,11 +49,32 @@ const ChatInput = () => {
             chat_title: finalMessage.length > 20 ? `${finalMessage.substring(0, 20)}...` : finalMessage
           });
           
-          // Send the message in the new session
-          await chatApi.sendMessage({
+          // Add user message immediately
+          if ((window as any).addChatMessage) {
+            (window as any).addChatMessage({
+              id: `temp-user-${Date.now()}`,
+              type: 'user',
+              content: finalMessage,
+              timestamp: new Date()
+            });
+          }
+          
+          // Send the message and get response
+          const response = await chatApi.sendMessage({
             prompt: finalMessage,
             chat_id: newSession.chat_id
           });
+          
+          // Add AI response immediately
+          if ((window as any).addChatMessage) {
+            (window as any).addChatMessage({
+              id: `temp-ai-${Date.now()}`,
+              type: 'ai',
+              content: response.response,
+              timestamp: new Date(),
+              originalPrompt: finalMessage
+            });
+          }
           
           // Navigate to the new chat session
           navigate(`/chat/${newSession.chat_id}`);
@@ -66,20 +83,36 @@ const ChatInput = () => {
             description: "Your message has been sent"
           });
         } else {
-          // Send message in existing session
-          await chatApi.sendMessage({
+          // Add user message immediately to existing chat
+          if ((window as any).addChatMessage) {
+            (window as any).addChatMessage({
+              id: `temp-user-${Date.now()}`,
+              type: 'user',
+              content: finalMessage,
+              timestamp: new Date()
+            });
+          }
+          
+          // Send message and get response
+          const response = await chatApi.sendMessage({
             prompt: finalMessage,
             chat_id: sessionId
           });
           
-          // Refresh the page to show the updated conversation
-          window.location.reload();
+          // Add AI response immediately
+          if ((window as any).addChatMessage) {
+            (window as any).addChatMessage({
+              id: `temp-ai-${Date.now()}`,
+              type: 'ai',
+              content: response.response,
+              timestamp: new Date(),
+              originalPrompt: finalMessage
+            });
+          }
         }
         
         setMessage('');
-        setExtractedText(''); // Clear extracted text after sending
-        setIsEditMode(false);
-        setEditingMessageId(null);
+        setExtractedText('');
       } catch (error) {
         console.error('Error sending message:', error);
         toast({
@@ -95,7 +128,6 @@ const ChatInput = () => {
 
   const handleTextExtracted = (extractedTextResult: string) => {
     setExtractedText(extractedTextResult);
-    // Don't set it as message content - let user add their own follow-up
     toast({
       title: "Text extracted successfully",
       description: "Add your follow-up question in the input box below."

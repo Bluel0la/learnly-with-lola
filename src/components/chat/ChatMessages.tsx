@@ -17,14 +17,15 @@ type UIMessage = {
   type: MessageType;
   content: string;
   timestamp: Date;
-  originalPrompt?: string; // For redo functionality
+  originalPrompt?: string;
 };
 
 interface ChatMessagesProps {
   sessionId?: string;
+  onNewMessage?: (message: UIMessage) => void;
 }
 
-const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
+const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesProps) => {
   const params = useParams();
   const sessionId = propSessionId || params.sessionId;
   const { toast } = useToast();
@@ -36,6 +37,20 @@ const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
   
   console.log('ChatMessages: sessionId =', sessionId);
   console.log('ChatMessages: messages =', messages);
+  
+  // Function to add new messages in real-time
+  const addMessage = (newMessage: UIMessage) => {
+    setMessages(prev => [...prev, newMessage]);
+    onNewMessage?.(newMessage);
+  };
+
+  // Expose addMessage function globally for ChatInput to use
+  useEffect(() => {
+    (window as any).addChatMessage = addMessage;
+    return () => {
+      delete (window as any).addChatMessage;
+    };
+  }, []);
   
   // Load messages based on sessionId
   useEffect(() => {
@@ -59,7 +74,7 @@ const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
               type: 'ai',
               content: message.response,
               timestamp: new Date(message.timestamp),
-              originalPrompt: message.query // Store original prompt for redo
+              originalPrompt: message.query
             };
             
             return [userMessage, aiMessage];
@@ -75,13 +90,12 @@ const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
             description: "Failed to load chat messages",
             variant: "destructive"
           });
-          setMessages([]); // Clear messages on error
+          setMessages([]);
         })
         .finally(() => {
           setIsLoading(false);
         });
     } else {
-      // If no sessionId, start with empty chat
       console.log('No sessionId, clearing messages');
       setMessages([]);
       setIsLoading(false);
@@ -121,7 +135,28 @@ const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
         chat_id: sessionId
       });
       
-      window.location.reload();
+      // Refresh messages instead of page reload
+      const chatMessages = await chatApi.getSessionMessages(sessionId);
+      const formattedMessages = chatMessages.flatMap((message, index) => {
+        const userMessage: UIMessage = {
+          id: `${sessionId}-${index}a`,
+          type: 'user',
+          content: message.query,
+          timestamp: new Date(message.timestamp)
+        };
+        
+        const aiMessage: UIMessage = {
+          id: `${sessionId}-${index}b`,
+          type: 'ai',
+          content: message.response,
+          timestamp: new Date(message.timestamp),
+          originalPrompt: message.query
+        };
+        
+        return [userMessage, aiMessage];
+      });
+      
+      setMessages(formattedMessages);
       
       toast({
         title: "Message resent",
@@ -145,7 +180,7 @@ const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
   };
 
   const hasLaTeX = (content: string) => {
-    return /\$\$[\s\S]*?\$\$|\$[^$\n]+?\$/.test(content);
+    return /\\begin\{aligned\}|\\text\{|\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\rightarrow|\\leftarrow/.test(content);
   };
 
   const userName = profile?.first_name || 'there';

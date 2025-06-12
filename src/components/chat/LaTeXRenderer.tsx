@@ -1,3 +1,4 @@
+
 import React from "react";
 import "katex/dist/katex.min.css";
 import katex from "katex";
@@ -15,7 +16,7 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
         errorColor: "#cc0000",
         strict: "warn",
         trust: true,
-        fleqn: true, // Left-align display math
+        fleqn: displayMode, // Left-align display math
       });
     } catch (error) {
       console.error("LaTeX render error:", error);
@@ -26,37 +27,50 @@ const LaTeXRenderer: React.FC<LaTeXRendererProps> = ({ content }) => {
   const processContent = (text: string): string => {
     let processed = text;
 
-    // Render \begin{aligned}...\end{aligned} blocks
+    // Handle \begin{aligned}...\end{aligned} blocks
     processed = processed.replace(
-      /\\begin{aligned}[\s\S]*?\\end{aligned}/g,
-      (match) => {
+      /\\begin\{aligned\}([\s\S]*?)\\end\{aligned\}/g,
+      (match, content) => {
         const rendered = renderLatex(match, true);
-        return `<div class="math-display">${rendered}</div>`;
+        return `<div class="math-display my-4 overflow-x-auto">${rendered}</div>`;
       }
     );
 
-    // Inline math: $...$
-    processed = processed.replace(/\$(.+?)\$/gs, (_, mathContent) => {
+    // Handle \text{...} blocks - render as regular text
+    processed = processed.replace(/\\text\{([^}]*)\}/g, (match, textContent) => {
+      return textContent;
+    });
+
+    // Handle display math blocks $$...$$
+    processed = processed.replace(/\$\$([\s\S]*?)\$\$/g, (match, mathContent) => {
+      const rendered = renderLatex(mathContent.trim(), true);
+      return `<div class="math-display my-4 overflow-x-auto">${rendered}</div>`;
+    });
+
+    // Handle inline math $...$
+    processed = processed.replace(/\$([^$\n]+?)\$/g, (match, mathContent) => {
       const rendered = renderLatex(mathContent.trim(), false);
       return `<span class="math-inline">${rendered}</span>`;
     });
 
-    // Bold (**...**)
+    // Handle arrow symbols
+    processed = processed.replace(/\\rightarrow|→/g, '→');
+    processed = processed.replace(/\\leftarrow|←/g, '←');
+
+    // Bold formatting **text**
     processed = processed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
 
-    // Inline code: `...`
+    // Inline code `text`
     processed = processed.replace(
       /`([^`]+)`/g,
       '<code class="bg-gray-100 px-1 rounded text-sm font-mono">$1</code>'
     );
 
-    // Emojis
-    processed = processed.replace(
-      /✅/g,
-      '<span class="text-green-600">✅</span>'
-    );
+    // Handle checkmarks and other symbols
+    processed = processed.replace(/✅/g, '<span class="text-green-600">✅</span>');
+    processed = processed.replace(/❌/g, '<span class="text-red-600">❌</span>');
 
-    // Convert newlines to <br> (only inside regular text)
+    // Convert newlines to line breaks
     processed = processed.replace(/\n/g, "<br>");
 
     return processed;

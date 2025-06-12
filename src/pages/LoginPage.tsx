@@ -10,9 +10,10 @@ import { authApi, SignupRequest } from '@/services/api';
 import { secureTokenStorage } from '@/services/secureTokenStorage';
 
 const LoginPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') === 'signup' ? 'signup' : 'login');
   
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -29,8 +30,6 @@ const LoginPage = () => {
   if (secureTokenStorage.getToken()) {
     return <Navigate to="/chat" replace />;
   }
-
-  const defaultTab = searchParams.get('tab') === 'signup' ? 'signup' : 'login';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,10 +84,16 @@ const LoginPage = () => {
         description: "Account created successfully! Please log in."
       });
       
-      // Switch to login tab after successful signup
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'login');
-      window.history.pushState({}, '', url.toString());
+      // Clear signup form
+      setSignupFirstname('');
+      setSignupLastname('');
+      setSignupEmail('');
+      setSignupPassword('');
+      setConfirmPassword('');
+      
+      // Switch to login tab
+      setActiveTab('login');
+      setSearchParams({ tab: 'login' });
     } catch (error) {
       console.error('Signup error:', error);
       toast({
@@ -121,7 +126,7 @@ const LoginPage = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue={defaultTab} className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
