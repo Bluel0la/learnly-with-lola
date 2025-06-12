@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useParams } from 'react-router-dom';
@@ -229,7 +228,7 @@ const ChatMessages = ({ sessionId: propSessionId, onNewMessage }: ChatMessagesPr
                             {formatTime(message.timestamp)}
                           </span>
                         </div>
-                        <div className="text-left w-full overflow-hidden">
+                        <div className="text-left w-full overflow-hidden flex items-center justify-center min-h-[8rem]">
                           {hasLaTeX(message.content) ? (
                             <LaTeXRenderer content={message.content} />
                           ) : (
