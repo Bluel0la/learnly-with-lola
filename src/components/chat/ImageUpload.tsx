@@ -1,9 +1,8 @@
-
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { chatApi } from '@/services/chatApi';
+import { chatApi } from '@/services/api';
 
 interface ImageUploadProps {
   onTextExtracted: (extractedText: string) => void;

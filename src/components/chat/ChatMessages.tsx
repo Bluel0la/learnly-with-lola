@@ -1,251 +1,225 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Copy, RotateCcw, Edit, User, Bot } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { chatApi } from '@/services/chatApi';
-import ChatHero from './ChatHero';
+import { useParams } from 'react-router-dom';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ChatMessage, chatApi } from '@/services/api';
 import MessageActions from './MessageActions';
-import MathRenderer from './MathRenderer';
+import LaTeXRenderer from './LaTeXRenderer';
+import RotatingText from '@/components/ui/rotating-text';
+import { useTimeBasedGreeting } from '@/hooks/useTimeBasedGreeting';
+import { useUserProfile } from '@/hooks/useUserProfile';
+
+type MessageType = 'user' | 'ai';
+
+type UIMessage = {
+  id: string;
+  type: MessageType;
+  content: string;
+  timestamp: Date;
+  originalPrompt?: string; // For redo functionality
+};
 
 interface ChatMessagesProps {
   sessionId?: string;
 }
 
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: string;
-  original_prompt?: string;
-}
-
-const ChatMessages = ({ sessionId }: ChatMessagesProps) => {
+const ChatMessages = ({ sessionId: propSessionId }: ChatMessagesProps) => {
+  const params = useParams();
+  const sessionId = propSessionId || params.sessionId;
   const { toast } = useToast();
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const queryClient = useQueryClient();
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingContent, setEditingContent] = useState('');
-
-  const { data: messages = [], isLoading, error } = useQuery({
-    queryKey: ['chat-messages', sessionId],
-    queryFn: () => sessionId ? chatApi.getSessionMessages(sessionId) : Promise.resolve([]),
-    enabled: !!sessionId,
-    refetchInterval: 2000, // Poll every 2 seconds for new messages
-    refetchIntervalInBackground: true
-  });
-
-  // Transform API response to match our Message interface
-  const transformedMessages: Message[] = React.useMemo(() => {
-    const result: Message[] = [];
-    
-    messages.forEach((msg: any) => {
-      // Add user message
-      result.push({
-        id: `user-${msg.timestamp}`,
-        role: 'user',
-        content: msg.query,
-        timestamp: msg.timestamp,
-        original_prompt: msg.query
-      });
+  const { greetings } = useTimeBasedGreeting();
+  const { profile } = useUserProfile();
+  
+  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  console.log('ChatMessages: sessionId =', sessionId);
+  console.log('ChatMessages: messages =', messages);
+  
+  // Load messages based on sessionId
+  useEffect(() => {
+    if (sessionId) {
+      console.log('Loading messages for session:', sessionId);
+      setIsLoading(true);
       
-      // Add assistant response
-      result.push({
-        id: `assistant-${msg.timestamp}`,
-        role: 'assistant',
-        content: msg.response,
-        timestamp: msg.timestamp,
-        original_prompt: msg.query
-      });
-    });
-    
-    return result;
+      chatApi.getSessionMessages(sessionId)
+        .then((chatMessages) => {
+          console.log('Received chat messages:', chatMessages);
+          const formattedMessages = chatMessages.flatMap((message, index) => {
+            const userMessage: UIMessage = {
+              id: `${sessionId}-${index}a`,
+              type: 'user',
+              content: message.query,
+              timestamp: new Date(message.timestamp)
+            };
+            
+            const aiMessage: UIMessage = {
+              id: `${sessionId}-${index}b`,
+              type: 'ai',
+              content: message.response,
+              timestamp: new Date(message.timestamp),
+              originalPrompt: message.query // Store original prompt for redo
+            };
+            
+            return [userMessage, aiMessage];
+          });
+          
+          console.log('Formatted messages:', formattedMessages);
+          setMessages(formattedMessages);
+        })
+        .catch((error) => {
+          console.error('Error fetching chat messages:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load chat messages",
+            variant: "destructive"
+          });
+          setMessages([]); // Clear messages on error
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      // If no sessionId, start with empty chat
+      console.log('No sessionId, clearing messages');
+      setMessages([]);
+      setIsLoading(false);
+    }
+  }, [sessionId, toast]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      }
-    }
-  }, [transformedMessages]);
+  const getMessageClassName = (message: UIMessage) => {
+    return message.type === 'user' ? 'chat-message-user' : 'chat-message-ai';
+  };
 
-  const handleCopy = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content);
-      toast({
-        title: "Copied to clipboard",
-        description: "Message content has been copied"
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to copy",
-        description: "Could not copy to clipboard",
-        variant: "destructive"
-      });
-    }
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast({
+      title: "Copied to clipboard",
+      description: "The message has been copied to your clipboard"
+    });
   };
 
   const handleRedo = async (originalPrompt: string) => {
-    if (!sessionId) return;
+    if (!sessionId || !originalPrompt) return;
     
     try {
-      // Send the original prompt again
       await chatApi.sendMessage({
         prompt: originalPrompt,
         chat_id: sessionId
       });
       
-      // Invalidate and refetch messages
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
+      window.location.reload();
       
       toast({
         title: "Message resent",
-        description: "Your question has been sent again"
+        description: "Your prompt has been resent to get a new response"
       });
     } catch (error) {
+      console.error('Error resending message:', error);
       toast({
-        title: "Failed to resend",
-        description: "Could not resend the message",
+        title: "Error",
+        description: "Failed to resend message",
         variant: "destructive"
       });
     }
   };
 
   const handleEdit = (messageId: string, originalPrompt: string) => {
-    setEditingMessageId(messageId);
-    setEditingContent(originalPrompt);
+    const editEvent = new CustomEvent('editMessage', {
+      detail: { messageId, originalPrompt }
+    });
+    window.dispatchEvent(editEvent);
   };
 
-  const handleSaveEdit = async () => {
-    if (!sessionId || !editingMessageId) return;
-    
-    try {
-      // Send the edited message
-      await chatApi.sendMessage({
-        prompt: editingContent,
-        chat_id: sessionId
-      });
-      
-      // Invalidate and refetch messages
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] });
-      
-      setEditingMessageId(null);
-      setEditingContent('');
-      
-      toast({
-        title: "Message edited",
-        description: "Your edited message has been sent"
-      });
-    } catch (error) {
-      toast({
-        title: "Failed to edit",
-        description: "Could not send edited message",
-        variant: "destructive"
-      });
-    }
+  const hasLaTeX = (content: string) => {
+    return /\$\$[\s\S]*?\$\$|\$[^$\n]+?\$/.test(content);
   };
 
-  const handleCancelEdit = () => {
-    setEditingMessageId(null);
-    setEditingContent('');
-  };
-
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading messages...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">Failed to load messages</p>
-          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['chat-messages', sessionId] })}>
-            Try Again
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const userName = profile?.first_name || 'there';
 
   return (
-    <ScrollArea className="h-full" ref={scrollAreaRef}>
-      <div className="p-4 md:p-6 max-w-4xl mx-auto">
-        {!sessionId || transformedMessages.length === 0 ? (
-          <ChatHero />
-        ) : (
-          <div className="space-y-6">
-            {transformedMessages.map((message) => (
-              <div key={message.id} className="group">
-                <div className={`flex gap-3 md:gap-4 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <Avatar className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10">
-                    <AvatarFallback className={message.role === 'user' ? 'bg-blue-100' : 'bg-green-100'}>
-                      {message.role === 'user' ? <User className="h-4 w-4 md:h-5 md:w-5" /> : <Bot className="h-4 w-4 md:h-5 md:w-5" />}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className={`flex-1 min-w-0 ${message.role === 'user' ? 'text-right' : ''}`}>
-                    <div className={`inline-block max-w-[85%] md:max-w-[80%] p-3 md:p-4 rounded-lg ${
-                      message.role === 'user' 
-                        ? 'bg-blue-500 text-white ml-auto' 
-                        : 'bg-gray-100 text-gray-900'
-                    }`}>
-                      {editingMessageId === message.id ? (
-                        <div className="space-y-3">
-                          <textarea
-                            value={editingContent}
-                            onChange={(e) => setEditingContent(e.target.value)}
-                            className="w-full p-2 border rounded resize-none text-gray-900"
-                            rows={3}
-                          />
-                          <div className="flex gap-2">
-                            <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                            <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
-                          </div>
-                        </div>
+    <div className="flex flex-col h-full max-w-full">
+      <ScrollArea className="flex-1 h-full">
+        <div className="p-4 max-w-full">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-pulse text-gray-500">Loading conversation...</div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="text-center text-gray-500">
+                <div className="text-4xl font-serif font-bold text-gray-800 mb-4 flex items-center justify-center gap-2">
+                  <RotatingText
+                    texts={greetings}
+                    rotationInterval={2500}
+                    staggerDuration={0.05}
+                    mainClassName="text-4xl font-serif font-bold"
+                    transition={{ type: "spring", damping: 20, stiffness: 200 }}
+                    splitBy="words"
+                  />
+                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-bold">
+                    {userName}
+                  </span>
+                </div>
+                <p className="text-lg text-gray-600 mb-4">
+                  Ready to study something new today?
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-4">
+              {messages.map((message) => (
+                <div key={message.id} className="flex flex-col max-w-full">
+                  <div className={`${getMessageClassName(message)} max-w-full word-wrap break-words`}>
+                    <div className="mb-1 flex justify-between items-center">
+                      <span className="text-xs text-gray-500">
+                        {message.type === 'user' ? 'You' : 'AI Assistant'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {formatTime(message.timestamp)}
+                      </span>
+                    </div>
+                    <div className="text-left max-w-full overflow-hidden">
+                      {hasLaTeX(message.content) ? (
+                        <LaTeXRenderer content={message.content} />
                       ) : (
-                        <div className="text-sm md:text-base">
-                          {message.role === 'assistant' ? (
-                            <MathRenderer content={message.content} />
-                          ) : (
-                            <div className="whitespace-pre-wrap">{message.content}</div>
-                          )}
+                        <div className="whitespace-pre-line break-words max-w-full">
+                          {message.content}
                         </div>
                       )}
                     </div>
-                    
-                    {message.role === 'assistant' && editingMessageId !== message.id && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MessageActions
-                          content={message.content}
-                          originalPrompt={message.original_prompt || ''}
-                          messageId={message.id}
-                          onCopy={handleCopy}
-                          onRedo={handleRedo}
-                          onEdit={handleEdit}
-                        />
-                      </div>
+                    {message.type === 'ai' && (
+                      <MessageActions
+                        content={message.content}
+                        originalPrompt={message.originalPrompt || ''}
+                        messageId={message.id}
+                        onCopy={handleCopy}
+                        onRedo={handleRedo}
+                        onEdit={handleEdit}
+                      />
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </ScrollArea>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
 

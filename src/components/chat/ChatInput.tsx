@@ -1,169 +1,186 @@
 
-import React, { useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send, Loader2, Paperclip } from 'lucide-react';
+import { Plus, Mic, ArrowUp, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { chatApi } from '@/services/chatApi';
+import { chatApi } from '@/services/api';
 import ImageUpload from './ImageUpload';
 
 const ChatInput = () => {
   const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { sessionId } = useParams();
-  const navigate = useNavigate();
+  const [extractedText, setExtractedText] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const params = useParams();
+  const navigate = useNavigate();
+  const sessionId = params.sessionId;
+
+  // Listen for edit events from MessageActions
+  useEffect(() => {
+    const handleEditMessage = (event: CustomEvent) => {
+      const { messageId, originalPrompt } = event.detail;
+      setMessage(originalPrompt);
+      setIsEditMode(true);
+      setEditingMessageId(messageId);
+    };
+
+    window.addEventListener('editMessage', handleEditMessage as EventListener);
+    
+    return () => {
+      window.removeEventListener('editMessage', handleEditMessage as EventListener);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() && uploadedImages.length === 0) return;
-
-    setIsLoading(true);
     
-    try {
-      let currentSessionId = sessionId;
+    // Combine extracted text with user message if both exist
+    const finalMessage = extractedText 
+      ? (message.trim() ? `${extractedText}\n\n${message}` : extractedText)
+      : message;
+    
+    if (finalMessage.trim() && !isSubmitting) {
+      setIsSubmitting(true);
       
-      // If no session, create a new one and navigate to it
-      if (!currentSessionId) {
-        const newSession = await chatApi.startSession({ chat_title: message.slice(0, 50) || 'New Chat' });
-        currentSessionId = newSession.chat_id;
-        navigate(`/chat/${currentSessionId}`, { replace: true });
+      try {
+        if (!sessionId) {
+          // Start a new chat session
+          const newSession = await chatApi.startSession({
+            chat_title: finalMessage.length > 20 ? `${finalMessage.substring(0, 20)}...` : finalMessage
+          });
+          
+          // Send the message in the new session
+          await chatApi.sendMessage({
+            prompt: finalMessage,
+            chat_id: newSession.chat_id
+          });
+          
+          // Navigate to the new chat session
+          navigate(`/chat/${newSession.chat_id}`);
+          toast({
+            title: "New chat started",
+            description: "Your message has been sent"
+          });
+        } else {
+          // Send message in existing session
+          await chatApi.sendMessage({
+            prompt: finalMessage,
+            chat_id: sessionId
+          });
+          
+          // Refresh the page to show the updated conversation
+          window.location.reload();
+        }
+        
+        setMessage('');
+        setExtractedText(''); // Clear extracted text after sending
+        setIsEditMode(false);
+        setEditingMessageId(null);
+      } catch (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send message",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSubmitting(false);
       }
-
-      // Send the message
-      await chatApi.sendMessage({
-        prompt: message,
-        chat_id: currentSessionId
-      });
-
-      // Clear the input and images
-      setMessage('');
-      setUploadedImages([]);
-      
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-
-      // Immediately invalidate and refetch messages to show real-time updates
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', currentSessionId] });
-      queryClient.invalidateQueries({ queryKey: ['chat-sessions'] });
-
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Failed to send message",
-        description: error instanceof Error ? error.message : "Please try again",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
+  const handleTextExtracted = (extractedTextResult: string) => {
+    setExtractedText(extractedTextResult);
+    // Don't set it as message content - let user add their own follow-up
+    toast({
+      title: "Text extracted successfully",
+      description: "Add your follow-up question in the input box below."
+    });
   };
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessage(e.target.value);
-    
-    // Auto-resize textarea
-    const textarea = e.target;
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-  };
-
-  const handleTextExtracted = (extractedText: string) => {
-    setMessage(prev => prev + (prev ? '\n\n' : '') + extractedText);
-    setShowImageUpload(false);
-  };
-
-  const removeImage = (indexToRemove: number) => {
-    setUploadedImages(prev => prev.filter((_, index) => index !== indexToRemove));
+  const clearExtractedText = () => {
+    setExtractedText('');
   };
 
   return (
-    <div className="border-t bg-white">
-      <div className="max-w-4xl mx-auto p-4">
-        {uploadedImages.length > 0 && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {uploadedImages.map((imageUrl, index) => (
-              <div key={index} className="relative group">
-                <img
-                  src={imageUrl}
-                  alt={`Upload ${index + 1}`}
-                  className="w-20 h-20 object-cover rounded-lg border"
-                />
-                <button
-                  onClick={() => removeImage(index)}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+    <div className="sticky bottom-0 border-t bg-white p-3 md:p-4 safe-area-inset-bottom">
+      <div className="max-w-4xl mx-auto">
+        {/* Extracted Text Display */}
+        {extractedText && (
+          <div className="mb-3 md:mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg relative">
+            <button
+              onClick={clearExtractedText}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+            >
+              <X size={16} />
+            </button>
+            <p className="text-sm text-blue-800 font-medium mb-1">Extracted Text:</p>
+            <p className="text-sm text-gray-700 pr-6">{extractedText}</p>
           </div>
         )}
-        
-        <form onSubmit={handleSubmit} className="flex gap-2 md:gap-3 items-end">
-          <div className="flex-1 relative">
-            <Textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleTextareaChange}
-              onKeyDown={handleKeyPress}
-              placeholder="Ask me anything about your studies..."
-              className="min-h-[50px] max-h-[200px] resize-none pr-12 text-sm md:text-base"
-              disabled={isLoading}
-            />
-            <div className="absolute right-2 bottom-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowImageUpload(true)}
-                className="h-8 w-8"
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          
-          <Button 
-            type="submit" 
-            disabled={(!message.trim() && uploadedImages.length === 0) || isLoading}
-            className="h-[50px] w-[50px] flex-shrink-0"
-            size="icon"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 md:h-5 md:w-5 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4 md:h-5 md:w-5" />
-            )}
-          </Button>
-        </form>
-        
-        <div className="mt-2 text-xs text-gray-500 text-center">
-          Press Enter to send, Shift + Enter for new line
-        </div>
-      </div>
 
-      {showImageUpload && (
-        <ImageUpload 
-          onTextExtracted={handleTextExtracted}
-          onClose={() => setShowImageUpload(false)}
-        />
-      )}
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-center gap-2 p-2 md:p-3 rounded-2xl md:rounded-full border shadow-sm bg-white">
+            {/* Left Icons */}
+            <div className="flex items-center gap-1 md:gap-2 pl-1 md:pl-2 pr-1">
+              <button
+                type="button"
+                onClick={() => setShowImageUpload(true)}
+                className="text-gray-500 hover:text-gray-700 cursor-pointer p-1"
+              >
+                <Plus size={18} className="md:w-5 md:h-5" />
+              </button>
+            </div>
+
+            {/* Input */}
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={extractedText ? "Add your follow-up question..." : "Ask anything"}
+              className="flex-1 px-2 md:px-3 py-2 text-sm focus:outline-none bg-transparent min-w-0"
+              disabled={isSubmitting}
+            />
+
+            {/* Microphone - Hidden on very small screens */}
+            <button
+              type="button"
+              className="text-gray-500 hover:text-gray-700 cursor-pointer mr-1 md:mr-2 hidden sm:block"
+            >
+              <Mic size={18} className="md:w-5 md:h-5" />
+            </button>
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={(!message.trim() && !extractedText) || isSubmitting}
+              className={`p-2 rounded-full transition shrink-0 ${
+                (message.trim() || extractedText) && !isSubmitting
+                  ? 'bg-black text-white hover:bg-gray-800'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+            >
+              {isSubmitting ? (
+                <div className="h-4 w-4 md:h-5 md:w-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+              ) : (
+                <ArrowUp size={14} className="md:w-4 md:h-4" />
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Image Upload Modal */}
+        {showImageUpload && (
+          <ImageUpload 
+            onTextExtracted={handleTextExtracted}
+            onClose={() => setShowImageUpload(false)}
+          />
+        )}
+      </div>
     </div>
   );
 };
