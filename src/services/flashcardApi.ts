@@ -1,4 +1,5 @@
 import { API_BASE_URL, getAuthHeaders, getFileUploadHeaders } from './apiConfig';
+import { setCache, getCache } from '@/lib/cacheUtils';
 
 export interface FlashcardDeck {
   deck_id: string;
@@ -121,18 +122,27 @@ export const flashcardApi = {
   },
 
   getDecks: async (): Promise<FlashcardDeck[]> => {
+    // Try new: Use cache when offline, else use network and cache result.
+    const cacheKey = "fc_decks_v1";
+    if (!navigator.onLine) {
+      const cached = getCache<FlashcardDeck[]>(cacheKey);
+      if (cached) return cached;
+    }
     const response = await fetch(`${API_BASE_URL}/flashcard/decks`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
-    
+
     if (!response.ok) {
+      // Fallback to cache on error
+      const cached = getCache<FlashcardDeck[]>(cacheKey);
+      if (cached) return cached;
       throw new Error('Failed to fetch decks');
     }
-    
+
     const decks = await response.json();
-    
-    // Fetch card count for each deck using the correct endpoint
+
+    // Also fetch card counts as before...
     const decksWithCounts = await Promise.all(
       decks.map(async (deck: FlashcardDeck) => {
         try {
@@ -140,109 +150,115 @@ export const flashcardApi = {
             method: 'GET',
             headers: getAuthHeaders()
           });
-          
+
           if (cardsResponse.ok) {
             const cards = await cardsResponse.json();
-            console.log(`Deck ${deck.deck_id} has ${cards.length} cards:`, cards);
             return { ...deck, card_count: Array.isArray(cards) ? cards.length : 0 };
           } else if (cardsResponse.status === 404) {
-            // Handle 404 - deck has no cards yet
-            console.log(`Deck ${deck.deck_id} has no cards yet (404)`);
             return { ...deck, card_count: 0 };
           }
-          console.log(`Failed to fetch cards for deck ${deck.deck_id}: ${cardsResponse.status}`);
           return { ...deck, card_count: 0 };
-        } catch (error) {
-          console.error(`Error fetching card count for deck ${deck.deck_id}:`, error);
+        } catch {
           return { ...deck, card_count: 0 };
         }
       })
     );
-    
+    setCache(cacheKey, decksWithCounts, 1000 * 60 * 60 * 12); // 12 hours
     return decksWithCounts;
   },
 
   getDeckCards: async (deckId: string): Promise<FlashcardCard[]> => {
+    const cacheKey = `fc_deck_cards_${deckId}`;
+    if (!navigator.onLine) {
+      const cached = getCache<FlashcardCard[]>(cacheKey);
+      if (cached) return cached;
+    }
     const response = await fetch(`${API_BASE_URL}/flashcard/decks/${deckId}/get-cards`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
-    
+
     if (!response.ok) {
+      const cached = getCache<FlashcardCard[]>(cacheKey);
+      if (cached) return cached;
       throw new Error('Failed to fetch deck cards');
     }
-    
-    return response.json();
+    const cards = await response.json();
+    setCache(cacheKey, cards, 1000 * 60 * 60 * 12); // 12 hours
+    return cards;
   },
 
-  // Fixed card generation method with proper authentication and validation
-  generateFlashcards: async (deckId: string, file: File, maxCards: number = 30): Promise<GenerateResponse> => {
+  // Fixed card generation method with proper endpoint and no timeout
+  generateFlashcards: async (deckId: string, file: File, numFlashcards?: number, maxCards: number = 25): Promise<{
+    message: string;
+    filename: string;
+    deck_id: string;
+    num_flashcards: number;
+    summaries: string[];
+    flashcards: Array<{ question: string; answer: string; summary?: string }>;
+  }> => {
     // Client-side file validation
     const maxSizeInMB = 10;
     const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
-    
     if (file.size > maxSizeInBytes) {
       throw new Error(`File size must be less than ${maxSizeInMB}MB`);
     }
-
+    
     const supportedTypes = ['.pdf', '.pptx', '.docx', '.txt'];
     const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    
     if (!supportedTypes.includes(fileExtension)) {
       throw new Error(`Unsupported file type. Please upload: ${supportedTypes.join(', ')}`);
     }
 
     const formData = new FormData();
     formData.append('file', file);
+    if (typeof numFlashcards === "number") {
+      formData.append('num_flashcards', numFlashcards.toString());
+    }
     formData.append('max_cards', maxCards.toString());
+
+    // Ensure correct endpoint format
+    const endpoint = `${API_BASE_URL}/flashcard/decks/${deckId}/generate-flashcards/`;
     
-    console.log(`Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB) to deck ${deckId}`);
-    console.log(`API endpoint: ${API_BASE_URL}/flashcard/decks/${deckId}/generate-flashcards`);
-    
+    console.log('Uploading to endpoint:', endpoint);
+    console.log('File details:', { name: file.name, size: file.size, type: file.type });
+
     try {
-      const response = await fetch(`${API_BASE_URL}/flashcard/decks/${deckId}/generate-flashcards`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: getFileUploadHeaders(),
-        body: formData
+        body: formData,
+        // Remove any timeout - let it run as long as needed
       });
-      
+
       console.log('Upload response status:', response.status);
-      console.log('Upload response headers:', Object.fromEntries(response.headers.entries()));
-      
+      console.log('Upload response headers:', response.headers);
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Upload error details:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText,
-          url: response.url
-        });
+        console.error('Upload error response:', errorText);
         
-        // Provide more specific error messages
-        if (response.status === 401) {
-          throw new Error('Authentication failed. Please log in again.');
-        } else if (response.status === 413) {
-          throw new Error('File too large. Please upload a smaller file.');
-        } else if (response.status === 415) {
-          throw new Error('Unsupported file type. Please upload PDF, PPTX, DOCX, or TXT files.');
-        } else if (response.status === 422) {
-          throw new Error('Invalid file content. Please check your file and try again.');
-        } else if (response.status >= 500) {
-          throw new Error('Server error. Please try again later.');
-        } else {
-          throw new Error(`Upload failed: ${response.status} - ${errorText || response.statusText}`);
-        }
+        if (response.status === 401) throw new Error('Authentication failed. Please log in again.');
+        if (response.status === 413) throw new Error('File too large. Please upload a smaller file.');
+        if (response.status === 415) throw new Error('Unsupported file type. Please upload PDF, PPTX, DOCX, or TXT files.');
+        if (response.status === 422) throw new Error('Invalid file content. Please check your file and try again.');
+        if (response.status >= 500) throw new Error('Server error. Please try again later.');
+        
+        throw new Error(`Upload failed: ${response.status} - ${errorText || response.statusText}`);
       }
-      
+
       const result = await response.json();
       console.log('Upload successful:', result);
       return result;
       
     } catch (error) {
-      console.error('Network error during upload:', error);
+      console.error('Upload error:', error);
+      
       if (error instanceof Error) {
         throw error;
       }
+      
+      // Handle network errors specifically
       throw new Error('Network error. Please check your connection and try again.');
     }
   },
@@ -259,15 +275,42 @@ export const flashcardApi = {
     }
   },
 
-  // Updated practice mode to fetch both question and answer
-  getPracticeCard: async (deckId: string): Promise<PracticeCard> => {
-    const response = await fetch(`${API_BASE_URL}/flashcard/decks/${deckId}/practice`, {
+  // Enhanced practice mode with navigation support
+  getPracticeCard: async (deckId: string, excludeCardIds?: string[]): Promise<PracticeCard> => {
+    let url = `${API_BASE_URL}/flashcard/decks/${deckId}/practice`;
+    if (excludeCardIds && excludeCardIds.length > 0) {
+      const params = new URLSearchParams();
+      excludeCardIds.forEach(id => params.append('exclude', id));
+      url += `?${params.toString()}`;
+    }
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
     });
     
     if (!response.ok) {
       throw new Error('Failed to get practice card');
+    }
+    
+    return response.json();
+  },
+
+  // New method to get cards for smart practice (prioritizing wrong/bookmarked)
+  getSmartPracticeCards: async (deckId: string, limit: number = 20): Promise<PracticeCard[]> => {
+    const response = await fetch(`${API_BASE_URL}/flashcard/decks/${deckId}/smart-practice?limit=${limit}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      // Fallback to regular deck cards if smart practice endpoint doesn't exist
+      const deckCards = await flashcardApi.getDeckCards(deckId);
+      return deckCards.map(card => ({
+        card_id: card.card_id,
+        question: card.question,
+        answer: card.answer || ''
+      })).slice(0, limit);
     }
     
     return response.json();
@@ -482,21 +525,31 @@ export const flashcardApi = {
 
   // Quiz attempts methods
   getQuizAttempts: async (deckId?: string): Promise<QuizAttempt[]> => {
+    const cacheKey = deckId ? `fc_quiz_attempts_${deckId}` : 'fc_quiz_attempts_all';
+    if (!navigator.onLine) {
+      const cached = getCache<QuizAttempt[]>(cacheKey);
+      if (cached) return cached;
+    }
+
     let url = `${API_BASE_URL}/flashcard/quiz-attempts`;
     if (deckId) {
       url += `?deck_id=${deckId}`;
     }
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()
     });
-    
+
     if (!response.ok) {
+      const cached = getCache<QuizAttempt[]>(cacheKey);
+      if (cached) return cached;
       throw new Error('Failed to fetch quiz attempts');
     }
-    
-    return response.json();
+
+    const attempts = await response.json();
+    setCache(cacheKey, attempts, 1000 * 60 * 60 * 12); // 12 hours
+    return attempts;
   },
 
   getBestScore: async (deckId: string): Promise<number> => {

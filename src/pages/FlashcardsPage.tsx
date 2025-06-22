@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,11 +13,12 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Plus, BookOpen, Play, Upload, Sparkles, Edit, Clock, BarChart3, Brain, MoreVertical } from 'lucide-react';
 import { FlashcardDeck, flashcardApi } from '@/services/flashcardApi';
-import FlashcardPractice from '@/components/flashcards/FlashcardPractice';
+import EnhancedFlashcardPractice from '@/components/flashcards/EnhancedFlashcardPractice';
 import FlashcardQuiz from '@/components/flashcards/FlashcardQuiz';
 import ManualCardDialog from '@/components/flashcards/ManualCardDialog';
 import DeckAnalytics from '@/components/flashcards/DeckAnalytics';
 import TiltedCard from '@/components/ui/TiltedCard';
+import useOnlineStatus from '@/hooks/useOnlineStatus';
 
 const FlashcardsPage = () => {
   const { toast } = useToast();
@@ -29,6 +29,7 @@ const FlashcardsPage = () => {
   const [selectedDeckTitle, setSelectedDeckTitle] = useState<string>('');
   const [newDeckTitle, setNewDeckTitle] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const online = useOnlineStatus();
 
   const loadDecks = async () => {
     try {
@@ -113,7 +114,7 @@ const FlashcardsPage = () => {
             ← Back to Decks
           </Button>
         </div>
-        <FlashcardPractice
+        <EnhancedFlashcardPractice
           deckId={selectedDeckId}
           onComplete={handleBackToDecks}
         />
@@ -156,6 +157,11 @@ const FlashcardsPage = () => {
         <div className="flex items-center gap-2 md:gap-3">
           <span className="text-2xl md:text-3xl">🎓</span>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-serif font-bold">Flashcards</h1>
+          {/* Online status indicator */}
+          <span className={`ml-2 flex items-center px-2 py-1 rounded-full text-xs ${online ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-500"}`}>
+            <span className={`h-2 w-2 rounded-full mr-1 ${online ? "bg-green-400" : "bg-gray-400"}`}></span>
+            {online ? "Online" : "Offline"}
+          </span>
         </div>
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -198,7 +204,7 @@ const FlashcardsPage = () => {
           <div className="h-6 w-6 md:h-8 md:w-8 border-2 border-t-transparent border-primary rounded-full animate-spin"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 md:gap-4 lg:gap-6">
           {decks.map((deck, index) => (
             <div 
               key={deck.deck_id} 
@@ -264,7 +270,7 @@ const FlashcardDeckCard = ({
   const [uploadProgress, setUploadProgress] = useState('');
   const [isManualDialogOpen, setIsManualDialogOpen] = useState(false);
   const [isGeneratingDrills, setIsGeneratingDrills] = useState(false);
-  
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -273,52 +279,31 @@ const FlashcardDeckCard = ({
       setIsUploading(true);
       setUploadProgress('Preparing upload...');
       
-      console.log('Starting file upload for deck:', deck.deck_id);
-      console.log('File details:', {
-        name: file.name,
-        size: file.size,
-        type: file.type
-      });
-      
-      // File validation feedback
       const maxSizeInMB = 10;
       if (file.size > maxSizeInMB * 1024 * 1024) {
         throw new Error(`File size must be less than ${maxSizeInMB}MB`);
       }
-
       const supportedExtensions = ['.pdf', '.pptx', '.docx', '.txt'];
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-      
       if (!supportedExtensions.includes(fileExtension)) {
         throw new Error(`Unsupported file type. Please upload: ${supportedExtensions.join(', ')}`);
       }
 
-      setUploadProgress('Uploading file...');
-      
-      // Add a small delay to show progress
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setUploadProgress('Processing content...');
-      
-      const result = await flashcardApi.generateFlashcards(deck.deck_id, file, 30);
-      
-      setUploadProgress('Creating flashcards...');
-      
-      // Another small delay for UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('Upload completed successfully:', result);
-      
+      setUploadProgress('Uploading and processing file...');
+      setUploadProgress('This may take a few minutes for large files...');
+
+      // No timeout - let it run as long as needed
+      const result = await flashcardApi.generateFlashcards(deck.deck_id, file, undefined, 25);
+
+      setUploadProgress('Finalizing flashcards...');
+
       toast({
         title: "Success! ✨",
-        description: `Generated ${result.cards?.length || 'multiple'} flashcards from "${file.name}"`
+        description: `Generated ${result.flashcards?.length || result.num_flashcards || 'multiple'} flashcards from "${file.name}"`
       });
       onCardsAdded();
-      
     } catch (error) {
-      console.error('Error generating flashcards:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate flashcards from file';
-      
       toast({
         title: "Upload Failed",
         description: errorMessage,

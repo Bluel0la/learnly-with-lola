@@ -1,0 +1,56 @@
+
+/* Mobile-specific fixes */
+@media screen and (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+  }
+  button, a, input, select, textarea {
+    min-height: 44px;
+  }
+  .text-sm {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  .space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+  .space-y-6 > * + * {
+    margin-top: 1rem;
+  }
+  .latex-content .katex {
+    font-size: 0.9em !important;
+    font-family: Inter, sans-serif !important;
+  }
+  .latex-content .katex-display {
+    font-size: 0.9em !important;
+    font-family: Inter, sans-serif !important;
+    margin: 0.5rem -1rem !important;
+    padding: 0.5rem 1rem !important;
+    overflow-x: auto;
+  }
+  .math-display {
+    margin: 0.5rem -1rem;
+    padding: 0.5rem 1rem;
+  }
+}
+
+/* Tablet-specific optimizations */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  .container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+  .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* High DPI display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .border {
+    border-width: 0.5px;
+  }
+}

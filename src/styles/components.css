@@ -1,0 +1,122 @@
+
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .card-base {
+    @apply rounded-xl border border-border bg-card shadow-sm transition-shadow duration-200 hover:shadow-lg;
+  }
+  .chat-message-user {
+    @apply p-3 md:p-4 rounded-xl bg-primary/10 ml-auto max-w-[85%] md:max-w-[80%] mb-4 overflow-hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .chat-message-ai {
+    @apply p-3 md:p-4 rounded-xl bg-secondary/10 mr-auto max-w-[85%] md:max-w-[80%] mb-4 overflow-hidden;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .chat-message-math {
+    @apply border-l-4 border-green-500;
+  }
+  .chat-message-summary {
+    @apply border-l-4 border-blue-500;
+  }
+  .btn-smart {
+    @apply inline-flex items-center rounded-lg px-2 md:px-3 py-1.5 md:py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors;
+  }
+  .chat-input {
+    @apply w-full p-2 md:p-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+  .action-button {
+    @apply inline-flex items-center justify-center p-1.5 md:p-2 rounded-full bg-background border border-border text-muted-foreground hover:bg-muted;
+  }
+  .latex-content {
+    font-family: Inter, sans-serif;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+  }
+  .math-display {
+    @apply my-3 w-full text-left;
+    overflow-x: auto;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+  .math-inline {
+    @apply inline-block;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    font-family: inherit;
+    font-size: inherit;
+  }
+  .latex-content .katex {
+    font-family: Inter, sans-serif !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+    color: inherit !important;
+  }
+  .latex-content .katex-display {
+    margin: 0.75rem 0 !important;
+    text-align: left !important;
+    font-family: Inter, sans-serif !important;
+    font-size: inherit !important;
+  }
+  .latex-content .katex * {
+    font-family: Inter, sans-serif !important;
+  }
+  .latex-content .katex .mord,
+  .latex-content .katex .mop,
+  .latex-content .katex .mbin,
+  .latex-content .katex .mrel,
+  .latex-content .katex .mopen,
+  .latex-content .katex .mclose,
+  .latex-content .katex .mpunct,
+  .latex-content .katex .minner {
+    font-family: Inter, sans-serif !important;
+  }
+  .chat-message-user .math-display,
+  .chat-message-ai .math-display {
+    margin: 0.5rem -0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+    text-align: left;
+  }
+  .flashcard-flip {
+    @apply transition-transform duration-700;
+    transform-style: preserve-3d;
+  }
+  .flashcard-flip.flipped {
+    transform: rotateY(180deg);
+  }
+  .flashcard-face {
+    @apply absolute inset-0 w-full h-full;
+    backface-visibility: hidden;
+  }
+  .flashcard-back {
+    transform: rotateY(180deg);
+  }
+  .container-responsive {
+    @apply px-3 md:px-6 lg:px-8;
+  }
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  .text-responsive-sm {
+    @apply text-sm md:text-base;
+  }
+  .text-responsive-md {
+    @apply text-base md:text-lg;
+  }
+  .text-responsive-lg {
+    @apply text-lg md:text-xl lg:text-2xl;
+  }
+  .text-wrap {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+}

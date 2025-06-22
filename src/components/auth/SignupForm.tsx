@@ -36,14 +36,15 @@ const SignupForm = ({
   isSignupLoading
 }: SignupFormProps) => {
   return (
-    <form onSubmit={handleSignUp}>
-      <CardContent className="space-y-4 pt-4">
+    <form onSubmit={handleSignUp} className="space-y-6">
+      <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label htmlFor="firstname" className="text-sm font-medium">First Name</label>
+            <label htmlFor="firstname" className="text-sm font-medium text-gray-700">First Name</label>
             <Input 
               id="firstname" 
               type="text" 
+              className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               placeholder="John" 
               value={firstname}
               onChange={(e) => setFirstname(e.target.value)}
@@ -52,10 +53,11 @@ const SignupForm = ({
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="lastname" className="text-sm font-medium">Last Name</label>
+            <label htmlFor="lastname" className="text-sm font-medium text-gray-700">Last Name</label>
             <Input 
               id="lastname" 
               type="text" 
+              className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               placeholder="Doe" 
               value={lastname}
               onChange={(e) => setLastname(e.target.value)}
@@ -66,10 +68,11 @@ const SignupForm = ({
         </div>
         
         <div className="space-y-2">
-          <label htmlFor="signupEmail" className="text-sm font-medium">Email</label>
+          <label htmlFor="signupEmail" className="text-sm font-medium text-gray-700">Email</label>
           <Input 
             id="signupEmail" 
             type="email" 
+            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             placeholder="name@example.com" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -78,10 +81,11 @@ const SignupForm = ({
         </div>
         
         <div className="space-y-2">
-          <label htmlFor="signupPassword" className="text-sm font-medium">Password</label>
+          <label htmlFor="signupPassword" className="text-sm font-medium text-gray-700">Password</label>
           <Input 
             id="signupPassword" 
             type="password" 
+            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             placeholder="••••••••" 
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -91,10 +95,11 @@ const SignupForm = ({
         </div>
         
         <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</label>
+          <label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700">Confirm Password</label>
           <Input 
             id="confirmPassword" 
             type="password" 
+            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
             placeholder="••••••••" 
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -104,22 +109,20 @@ const SignupForm = ({
             <p className="text-sm text-red-600">Passwords don't match</p>
           )}
         </div>
-      </CardContent>
+      </div>
       
-      <CardFooter className="flex flex-col">
-        <Button 
-          type="submit" 
-          className="w-full bg-primary hover:bg-primary/90"
-          disabled={isSignupLoading}
-        >
-          {isSignupLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating Account...
-            </>
-          ) : 'Create Account'}
-        </Button>
-      </CardFooter>
+      <Button 
+        type="submit" 
+        className="w-full h-12 text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+        disabled={isSignupLoading}
+      >
+        {isSignupLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating Account...
+          </>
+        ) : 'Create Account'}
+      </Button>
     </form>
   );
 };

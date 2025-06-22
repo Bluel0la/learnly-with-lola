@@ -16,11 +16,14 @@ const AuthRedirect = ({ children }: AuthRedirectProps) => {
   
   useEffect(() => {
     const checkAuth = () => {
-      // Don't redirect if already on login or signup page
       const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
-      
-      if (!secureTokenStorage.isAuthenticated() && !isAuthPage) {
-        // Only show toast once per session to avoid spam
+      const isLandingPage = location.pathname === '/';
+      const isAuthenticated = secureTokenStorage.isAuthenticated();
+
+      console.log('Auth check:', { isAuthenticated, isAuthPage, isLandingPage, pathname: location.pathname });
+
+      // Allow unauthenticated users to view the landing page
+      if (!isAuthenticated && !isAuthPage && !isLandingPage) {
         if (!hasShownToast.current) {
           toast({
             title: "Session expired",
@@ -29,28 +32,29 @@ const AuthRedirect = ({ children }: AuthRedirectProps) => {
           });
           hasShownToast.current = true;
         }
-        navigate('/login', { state: { from: location.pathname } });
-      } else if (secureTokenStorage.isAuthenticated() && isAuthPage) {
-        // If user is authenticated but on auth page, redirect to chat
-        navigate('/chat');
+        navigate('/login', { replace: true, state: { from: location.pathname } });
       }
+      // Remove the automatic redirect from auth pages when authenticated
+      // Let the LoginPage component handle this logic instead
     };
 
-    // Check immediately
     checkAuth();
     
-    // Set up interval to check token expiration every 30 seconds (reduced from 1 minute for better UX)
-    const interval = setInterval(checkAuth, 30000);
+    // Check less frequently to avoid performance issues
+    const interval = setInterval(checkAuth, 60000);
     
     return () => clearInterval(interval);
   }, [location.pathname, navigate, toast]);
 
-  // Listen for storage changes (when user logs out in another tab)
   useEffect(() => {
-    const handleStorageChange = () => {
-      const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
-      if (!secureTokenStorage.isAuthenticated() && !isAuthPage) {
-        navigate('/login');
+    const handleStorageChange = (e: StorageEvent) => {
+      // Only respond to relevant storage changes
+      if (e.key === 'learnly_token_expires' || e.key === null) {
+        const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+        const isLandingPage = location.pathname === '/';
+        if (!secureTokenStorage.isAuthenticated() && !isAuthPage && !isLandingPage) {
+          navigate('/login', { replace: true });
+        }
       }
     };
 

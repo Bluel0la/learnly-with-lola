@@ -1,7 +1,7 @@
 
 import { API_BASE_URL, getAuthHeaders } from './apiConfig';
 
-// Types for Quiz API
+// Types for Quiz API - Updated to match exact API specification
 export interface MathTopic {
   topic_id: string;
   name: string;
@@ -66,6 +66,7 @@ export interface SubmitResultResponse {
 }
 
 export interface AdaptiveBatchRequest {
+  difficulty: string;
   num_questions: number;
 }
 

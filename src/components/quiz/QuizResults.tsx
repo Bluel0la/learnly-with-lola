@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,11 +12,11 @@ interface QuizResultsProps {
   onBackToQuizzes: () => void;
 }
 
-const QuizResults: React.FC<QuizResultsProps> = ({ 
+const QuizResults: React.FC<QuizResultsProps> = ({
   sessionId,
-  topic, 
-  onStartNewQuiz, 
-  onBackToQuizzes 
+  topic,
+  onStartNewQuiz,
+  onBackToQuizzes,
 }) => {
   const [reviewData, setReviewData] = useState<QuizReviewResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,6 +54,32 @@ const QuizResults: React.FC<QuizResultsProps> = ({
     if (percentage >= 70) return 'Great job! 👍';
     if (percentage >= 60) return 'Good effort! Keep practicing! 💪';
     return 'Keep practicing - you\'ll improve! 📚';
+  };
+
+  const getNextSuggestion = () => {
+    if (!reviewData) return null;
+    const { score_percent, results } = reviewData;
+    if (score_percent >= 80)
+      return (
+        <span>
+          You’ve mastered this topic—try <span className="font-semibold">Simulated Exam</span> for a bigger challenge!
+        </span>
+      );
+    // Show weakest topic (if possible)
+    const wrongAnswers = results.filter(r => !r.is_correct);
+    if (wrongAnswers.length > 0) {
+      const freq: Record<string, number> = {};
+      wrongAnswers.forEach(r => {
+        freq[r.question_id] = (freq[r.question_id] || 0) + 1;
+      });
+      // In real case, map questionIDs to topics. For now, generic advice:
+      return (
+        <span>
+          Try reviewing the <span className="font-semibold text-orange-800">previously incorrect questions</span> above and practicing similar ones to boost your accuracy.
+        </span>
+      );
+    }
+    return null;
   };
 
   if (isLoading) {
@@ -124,6 +149,10 @@ const QuizResults: React.FC<QuizResultsProps> = ({
             <p className="text-sm text-gray-600">
               Total questions answered: <span className="font-medium">{reviewData.total_questions}</span>
             </p>
+          </div>
+
+          <div className="mt-3 px-4 py-3 rounded bg-yellow-50 text-yellow-900 text-center font-medium">
+            {getNextSuggestion()}
           </div>
 
           <div className="w-full bg-gray-200 rounded-full h-4">

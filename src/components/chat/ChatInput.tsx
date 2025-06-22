@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Plus, Mic, ArrowUp, X } from 'lucide-react';
@@ -16,6 +16,16 @@ const ChatInput = () => {
   const params = useParams();
   const navigate = useNavigate();
   const sessionId = params.sessionId;
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+    }
+  }, [message]);
 
   // Listen for edit events from MessageActions
   useEffect(() => {
@@ -30,6 +40,13 @@ const ChatInput = () => {
       window.removeEventListener('editMessage', handleEditMessage as EventListener);
     };
   }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e as any);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,11 +156,11 @@ const ChatInput = () => {
   };
 
   return (
-    <div className="sticky bottom-0 border-t bg-white p-3 md:p-4 safe-area-inset-bottom">
+    <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
       <div className="max-w-4xl mx-auto">
         {/* Extracted Text Display */}
         {extractedText && (
-          <div className="mb-3 md:mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg relative">
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg relative">
             <button
               onClick={clearExtractedText}
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
@@ -156,52 +173,68 @@ const ChatInput = () => {
         )}
 
         <form onSubmit={handleSubmit}>
-          <div className="flex items-center gap-2 p-2 md:p-3 rounded-2xl md:rounded-full border shadow-sm bg-white">
-            {/* Left Icons */}
-            <div className="flex items-center gap-1 md:gap-2 pl-1 md:pl-2 pr-1">
+          <div className="relative bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
+            {/* Left Icon */}
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 z-10">
               <button
                 type="button"
                 onClick={() => setShowImageUpload(true)}
-                className="text-gray-500 hover:text-gray-700 cursor-pointer p-1"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
               >
-                <Plus size={18} className="md:w-5 md:h-5" />
+                <Plus size={20} />
               </button>
             </div>
 
-            {/* Input */}
-            <input
-              type="text"
+            {/* Textarea */}
+            <textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={extractedText ? "Add your follow-up question..." : "Ask anything"}
-              className="flex-1 px-2 md:px-3 py-2 text-sm focus:outline-none bg-transparent min-w-0"
+              onKeyDown={handleKeyDown}
+              placeholder={extractedText ? "Add your follow-up question..." : "Message Learnly..."}
               disabled={isSubmitting}
+              className="w-full pl-12 pr-20 py-4 text-gray-900 placeholder-gray-500 bg-transparent border-0 resize-none focus:outline-none focus:ring-0"
+              style={{
+                minHeight: '56px',
+                maxHeight: '200px',
+                overflowY: 'auto'
+              }}
+              rows={1}
             />
 
-            {/* Microphone - Hidden on very small screens */}
-            <button
-              type="button"
-              className="text-gray-500 hover:text-gray-700 cursor-pointer mr-1 md:mr-2 hidden sm:block"
-            >
-              <Mic size={18} className="md:w-5 md:h-5" />
-            </button>
+            {/* Right Icons */}
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+              {/* Microphone - Hidden on mobile */}
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100 hidden sm:block"
+                tabIndex={-1}
+              >
+                <Mic size={20} />
+              </button>
 
-            {/* Send Button */}
-            <button
-              type="submit"
-              disabled={(!message.trim() && !extractedText) || isSubmitting}
-              className={`p-2 rounded-full transition shrink-0 ${
-                (message.trim() || extractedText) && !isSubmitting
-                  ? 'bg-black text-white hover:bg-gray-800'
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {isSubmitting ? (
-                <div className="h-4 w-4 md:h-5 md:w-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-              ) : (
-                <ArrowUp size={14} className="md:w-4 md:h-4" />
-              )}
-            </button>
+              {/* Send Button */}
+              <button
+                type="submit"
+                disabled={(!message.trim() && !extractedText) || isSubmitting}
+                className={`p-2 rounded-full transition-all duration-200 ${
+                  (message.trim() || extractedText) && !isSubmitting
+                    ? 'bg-black text-white hover:bg-gray-800 shadow-sm'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isSubmitting ? (
+                  <div className="h-5 w-5 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+                ) : (
+                  <ArrowUp size={18} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Helper Text */}
+          <div className="mt-2 text-xs text-gray-500 text-center">
+            Press Enter to send, Shift + Enter for new line
           </div>
         </form>
 

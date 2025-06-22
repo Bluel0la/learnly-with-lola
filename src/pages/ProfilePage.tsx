@@ -2,31 +2,31 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, Save, User, UserRound, Trash2, X } from 'lucide-react';
+import { Edit, Save, Trash2, X, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { authApi, UserProfile, ProfileUpdateRequest } from '@/services/api';
 import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle,
-  DialogTrigger
+  Dialog, DialogContent, DialogDescription, DialogFooter, 
+  DialogHeader, DialogTitle, DialogTrigger
 } from '@/components/ui/dialog';
-import { 
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage
-} from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import { flashcardApi } from '@/services/api';
+import ProfileInfo from "./profile/ProfileInfo";
+import StatCard from "./profile/StatCard";
+import SubjectProgress from "./profile/SubjectProgress";
+import SessionItem from "./profile/SessionItem";
+import ProfileForm from "./profile/ProfileForm";
+import { flashcardApi, quizApi } from '@/services/api';
 
+// Extended type for unified session item, keeps minimal
+type CombinedSession = {
+  id: string;
+  type: "Quiz" | "Flashcard";
+  title: string;
+  date: string;
+  detail?: string;
+};
+
+// Responsive and lively Profile Page
 const ProfilePage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -36,9 +36,14 @@ const ProfilePage = () => {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [flashcardStats, setFlashcardStats] = useState({ deckCount: 0, cardCount: 0 });
   
+  // State for session items (quiz + flashcard, max 5 most recent)
+  const [historySessions, setHistorySessions] = useState<CombinedSession[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
   useEffect(() => {
     fetchUserProfile();
     fetchFlashcardStats();
+    fetchCombinedSessionHistory();
   }, []);
 
   const fetchFlashcardStats = async () => {
@@ -53,7 +58,7 @@ const ProfilePage = () => {
       console.error('Failed to fetch flashcard stats:', error);
     }
   };
-  
+
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
@@ -71,36 +76,68 @@ const ProfilePage = () => {
     }
   };
 
+  // Fetch both quiz and flashcard sessions, combine and sort by date
+  const fetchCombinedSessionHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      // Quiz sessions history (API returns array)
+      const quizHistory = await quizApi.getQuizHistory();
+      const quizSessions: CombinedSession[] = (quizHistory?.sessions || []).map(qs => ({
+        id: qs.session_id,
+        type: "Quiz",
+        title: typeof qs.topic === "string" ? qs.topic : "Quiz",
+        date: qs.date,
+        detail: `${qs.total_questions} questions, ${qs.accuracy}%`
+      }));
+
+      // [Optional] Future flashcard session support if backend API exists:
+      // let flashcardSessions: CombinedSession[] = [];
+      // if (typeof flashcardApi.getRecentSessions === "function") {
+      //   // ...code for mapping flashcard sessions...
+      // }
+      // For now, leave flashcardSessions empty.
+      let flashcardSessions: CombinedSession[] = [];
+
+      // Merge, sort by date desc, take top 5
+      const allSessions = [...quizSessions, ...flashcardSessions]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 5);
+
+      setHistorySessions(allSessions);
+    } catch (err) {
+      console.error("Failed to fetch combined session history:", err);
+      setHistorySessions([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const handleProfileUpdate = async (data: ProfileUpdateRequest) => {
-  try {
-    setLoading(true);
-    await authApi.updateProfile({
-      firstname: data.firstname,
-      lastname: data.lastname,
-      educational_level: data.educational_level,
-      age: data.age ? Number(data.age) : undefined
-    });
+    try {
+      setLoading(true);
+      await authApi.updateProfile({
+        firstname: data.firstname,
+        lastname: data.lastname,
+        educational_level: data.educational_level,
+        age: data.age ? Number(data.age) : undefined
+      });
 
-    // 👇 Fetch fresh profile from backend
-    await fetchUserProfile();
-
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been saved successfully"
-    });
-
-    setIsEditing(false);
-  } catch (error) {
-    toast({
-      title: "Update failed",
-      description: "There was a problem updating your profile",
-      variant: "destructive"
-    });
-  } finally {
-    setLoading(false);
-  }
-};
-
+      await fetchUserProfile();
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been saved successfully",
+      });
+      setIsEditing(false);
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "There was a problem updating your profile",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDeleteAccount = async () => {
     try {
@@ -122,10 +159,8 @@ const ProfilePage = () => {
       setLoading(false);
     }
   };
-  
-  const handleEditToggle = () => {
-    setIsEditing(!isEditing);
-  };
+
+  const handleEditToggle = () => setIsEditing(!isEditing);
 
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -145,63 +180,48 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-serif font-bold">Profile</h1>
-        {isEditing ? (
-          <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              onClick={handleCancelEdit}
-            >
+    <div className="container max-w-4xl mx-auto py-6 px-2 md:px-4 animate-fade-in">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center mb-4">
+        <h1 className="text-2xl sm:text-3xl font-serif font-bold">Profile</h1>
+        <div>
+          {isEditing ? (
+            <Button variant="outline" onClick={handleCancelEdit} className="flex items-center">
               <X className="h-4 w-4 mr-2" /> Cancel
             </Button>
-          </div>
-        ) : (
-          <Button 
-            variant="outline"
-            onClick={handleEditToggle}
-            disabled={loading}
-          >
-            <Edit className="h-4 w-4 mr-2" /> Edit
-          </Button>
-        )}
+          ) : (
+            <Button variant="outline" onClick={handleEditToggle} disabled={loading} className="flex items-center">
+              <Edit className="h-4 w-4 mr-2" /> Edit
+            </Button>
+          )}
+        </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <Card>
-            <CardContent className="p-6 flex flex-col items-center">
-              <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                <UserRound className="h-12 w-12 text-gray-500" />
+      {/* Main Content Grid */}
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Profile card column */}
+        <div className="w-full md:w-1/3 order-2 md:order-1">
+          <Card className="relative z-0 p-0 overflow-visible">
+            <CardContent className="py-8 px-5 flex flex-col items-center bg-gradient-to-b from-white/80 to-blue-50 rounded-xl shadow animate-fade-in">
+              <div className="w-24 h-24 bg-gradient-to-br from-blue-200 via-purple-200 to-gray-200 rounded-full flex items-center justify-center mb-3 shadow-lg">
+                <User className="h-12 w-12 text-blue-600" />
               </div>
               {profile && (
                 <>
-                  <h2 className="text-xl font-medium">{profile.first_name} {profile.last_name}</h2>
-                  <p className="text-gray-500 text-sm">{profile.email}</p>
-                  <p className="text-gray-500 text-sm mt-1">Member since May 2025</p>
+                  <h2 className="text-xl font-semibold text-center">{profile.first_name} {profile.last_name}</h2>
+                  <p className="text-gray-500 text-sm break-all text-center">{profile.email}</p>
+                  <p className="text-gray-400 text-xs mt-2 text-center">Member since May 2025</p>
                 </>
               )}
-              
+
               {!isEditing ? (
-                <div className="w-full mt-4 space-y-2">
+                <div className="w-full mt-5 space-y-2">
                   {profile?.educational_level && (
-                    <div className="text-sm">
-                      <span className="text-gray-500">Education Level:</span>
-                      <span className="ml-2">{profile.educational_level}</span>
-                    </div>
+                    <ProfileInfo label="Education Level" value={profile.educational_level} />
                   )}
                   {profile?.age && (
-                    <div className="text-sm">
-                      <span className="text-gray-500">Age:</span>
-                      <span className="ml-2">{profile.age}</span>
-                    </div>
+                    <ProfileInfo label="Age" value={profile.age} />
                   )}
                   {profile?.gender && (
-                    <div className="text-sm">
-                      <span className="text-gray-500">Gender:</span>
-                      <span className="ml-2">{profile.gender}</span>
-                    </div>
+                    <ProfileInfo label="Gender" value={profile.gender} />
                   )}
                 </div>
               ) : (
@@ -214,14 +234,11 @@ const ProfilePage = () => {
               )}
             </CardContent>
           </Card>
-
+          {/* Delete Account */}
           <div className="mt-4">
             <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
               <DialogTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="w-full text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
+                <Button variant="outline" className="w-full text-red-500 hover:text-red-700 hover:bg-red-50">
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete Account
                 </Button>
@@ -234,17 +251,10 @@ const ProfilePage = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setConfirmDeleteOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
                     Cancel
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleDeleteAccount}
-                    disabled={loading}
-                  >
+                  <Button variant="destructive" onClick={handleDeleteAccount} disabled={loading}>
                     Delete Account
                   </Button>
                 </DialogFooter>
@@ -252,97 +262,94 @@ const ProfilePage = () => {
             </Dialog>
           </div>
         </div>
-        
-        <div className="md:col-span-2">
-          <Tabs defaultValue="stats">
-            <TabsList className="w-full grid grid-cols-3">
+        {/* Tabbed stats, 2/3rds width */}
+        <div className="w-full md:w-2/3 order-1 md:order-2">
+          <Tabs defaultValue="stats" className="w-full">
+            <TabsList className="w-full flex overflow-x-auto rounded-lg bg-gray-100 border mb-2 sm:mb-4 gap-1 px-1 py-0">
               <TabsTrigger value="stats">Statistics</TabsTrigger>
               <TabsTrigger value="history">Session History</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
-            
-            <TabsContent value="stats" className="mt-4">
-              <Card>
+
+            {/* Statistics Tab */}
+            <TabsContent value="stats" className="mt-0 sm:mt-2">
+              <Card className="bg-gradient-to-b from-white to-blue-50/40 border-blue-100 shadow-lg animate-fade-in">
                 <CardHeader>
-                  <CardTitle>Your Learning Progress</CardTitle>
+                  <CardTitle className="text-lg font-bold mb-0">Your Learning Progress</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <StatCard title="Study Sessions" value="12" subtitle="This month" />
-                    <StatCard title="Quiz Score" value="85%" subtitle="Average" />
-                    <StatCard title="Flashcard Decks" value={flashcardStats.deckCount.toString()} subtitle="Created" />
+                <CardContent className="pt-0">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-2">
+                    <StatCard title="Study Sessions" value="12" subtitle="This month" onClick={() => toast({title:"View Study Sessions"})}/>
+                    <StatCard title="Quiz Score" value="85%" subtitle="Average" highlightBg="from-green-100 to-blue-50" onClick={() => toast({title:"View Quiz Score Trend"})}/>
+                    <StatCard title="Flashcard Decks" value={flashcardStats.deckCount.toString()} subtitle="Created" highlightBg="from-purple-100 to-blue-50" onClick={() => toast({title:"View Flashcard Decks"})}/>
                   </div>
-                  
+
+                  {/* Flashcard Statistics section */}
                   <div className="mt-6">
-                    <h3 className="text-lg font-medium mb-3">Flashcard Statistics</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                      <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">🃏</span>
-                          <span className="font-medium">Total Cards</span>
-                        </div>
-                        <div className="text-2xl font-bold text-blue-600">{flashcardStats.cardCount}</div>
-                        <div className="text-sm text-muted-foreground">Cards created</div>
-                      </div>
-                      
-                      <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-2xl">📚</span>
-                          <span className="font-medium">Deck Collection</span>
-                        </div>
-                        <div className="text-2xl font-bold text-green-600">{flashcardStats.deckCount}</div>
-                        <div className="text-sm text-muted-foreground">Decks organized</div>
-                      </div>
+                    <h3 className="text-base font-semibold mb-2">Flashcard Statistics</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                      <StatCard 
+                        icon={<span className="text-2xl">🃏</span>} 
+                        title="Total Cards" 
+                        value={flashcardStats.cardCount.toString()} 
+                        subtitle="Cards created"
+                        highlightBg="from-blue-50 to-teal-50"
+                        onClick={() => toast({title: "View All Cards"})}
+                      />
+                      <StatCard 
+                        icon={<span className="text-2xl">📚</span>}
+                        title="Deck Collection"
+                        value={flashcardStats.deckCount.toString()}
+                        subtitle="Decks organized"
+                        highlightBg="from-green-50 to-blue-50"
+                        onClick={() => toast({title:"View Deck Collection"})}
+                      />
                     </div>
                   </div>
-                  
+                  {/* Subject Progress */}
                   <div className="mt-6">
-                    <h3 className="text-lg font-medium mb-3">Subject Breakdown</h3>
-                    <div className="space-y-3">
-                      <SubjectProgress subject="Mathematics" progress={0.65} />
-                      <SubjectProgress subject="Physics" progress={0.45} />
-                      <SubjectProgress subject="Chemistry" progress={0.2} />
-                      <SubjectProgress subject="Biology" progress={0.1} />
+                    <h3 className="text-base font-semibold mb-2">Subject Breakdown</h3>
+                    <div className="space-y-4">
+                      <SubjectProgress subject="Mathematics" progress={0.65} onClick={() => toast({title:"Mathematics detail coming soon!"})}/>
+                      <SubjectProgress subject="Physics" progress={0.45} onClick={() => toast({title:"Physics detail coming soon!"})}/>
+                      <SubjectProgress subject="Chemistry" progress={0.2} onClick={() => toast({title:"Chemistry detail coming soon!"})}/>
+                      <SubjectProgress subject="Biology" progress={0.1} onClick={() => toast({title:"Biology detail coming soon!"})}/>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
             
-            <TabsContent value="history" className="mt-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Sessions</CardTitle>
-                </CardHeader>
+            {/* Session History Tab */}
+            <TabsContent value="history" className="mt-2">
+              <Card className="shadow animate-fade-in">
+                <CardHeader><CardTitle>Recent Sessions</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <SessionItem 
-                      title="Calculus Derivatives" 
-                      date="May 14, 2025" 
-                      type="Math" 
-                    />
-                    <SessionItem 
-                      title="Physics Chapter Summary" 
-                      date="May 12, 2025" 
-                      type="Summary" 
-                    />
-                    <SessionItem 
-                      title="Biology Flashcards" 
-                      date="May 10, 2025" 
-                      type="Flashcard" 
-                    />
-                    <SessionItem 
-                      title="Chemistry Quiz" 
-                      date="May 8, 2025" 
-                      type="Quiz" 
-                    />
+                  <div className="space-y-2">
+                    {historyLoading ? (
+                      <div className="py-6 text-center text-gray-400 text-sm">Loading history...</div>
+                    ) : historySessions.length === 0 ? (
+                      <div className="py-6 text-center text-gray-400 text-sm">
+                        No recent quiz or flashcard activity found.
+                      </div>
+                    ) : (
+                      historySessions.map(s => (
+                        <SessionItem
+                          key={s.id}
+                          title={s.title}
+                          date={new Date(s.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          type={s.type}
+                        />
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
             
-            <TabsContent value="settings" className="mt-4">
-              <Card>
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="mt-2">
+              <Card className="shadow animate-fade-in">
                 <CardHeader>
                   <CardTitle>Account Settings</CardTitle>
                 </CardHeader>
@@ -354,7 +361,6 @@ const ProfilePage = () => {
                       <label htmlFor="emailNotif" className="text-sm">Receive email updates about your activity</label>
                     </div>
                   </div>
-                  
                   <div>
                     <label className="text-sm font-medium block mb-1">Theme Preference</label>
                     <div className="flex items-center space-x-4">
@@ -372,7 +378,6 @@ const ProfilePage = () => {
                       </div>
                     </div>
                   </div>
-                  
                   <div>
                     <label className="text-sm font-medium block mb-1">Language</label>
                     <select className="w-full p-2 border rounded">
@@ -386,146 +391,6 @@ const ProfilePage = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
-    </div>
-  );
-};
-
-const ProfileForm = ({ 
-  profile, 
-  onSubmit, 
-  onCancel,
-  loading 
-}: { 
-  profile: UserProfile | null, 
-  onSubmit: (data: ProfileUpdateRequest) => void,
-  onCancel: () => void,
-  loading: boolean
-}) => {
-  const form = useForm<ProfileUpdateRequest>({
-    defaultValues: {
-      firstname: profile?.first_name || '',
-      lastname: profile?.last_name || '',
-      educational_level: profile?.educational_level || '',
-      age: profile?.age,
-    },
-  });
-
-  const handleSubmit = form.handleSubmit((data) => {
-    onSubmit(data);
-  });
-
-  return (
-    <form className="w-full mt-4 space-y-3" onSubmit={handleSubmit}>
-      <div>
-        <label className="text-sm text-gray-500 block mb-1">First Name</label>
-        <Input
-          {...form.register('firstname')}
-          defaultValue={profile?.first_name}
-          disabled={loading}
-        />
-      </div>
-      <div>
-        <label className="text-sm text-gray-500 block mb-1">Last Name</label>
-        <Input
-          {...form.register('lastname')}
-          defaultValue={profile?.last_name}
-          disabled={loading}
-        />
-      </div>
-      <div>
-        <label className="text-sm text-gray-500 block mb-1">Education Level</label>
-        <Input
-          {...form.register('educational_level')}
-          defaultValue={profile?.educational_level}
-          disabled={loading}
-          placeholder="e.g. University, High School"
-        />
-      </div>
-      <div>
-        <label className="text-sm text-gray-500 block mb-1">Age</label>
-        <Input
-          {...form.register('age')}
-          type="number"
-          defaultValue={profile?.age}
-          disabled={loading}
-          min={1}
-          max={120}
-        />
-      </div>
-      <div className="flex flex-col justify-center items-center gap-2 pt-4">
-        <Button 
-          type="submit"
-          className="flex-1 bg-primary text-white hover:bg-primary/90"
-          disabled={loading}
-        >
-          <Save className="h-4 w-4 mr-2" /> Save Changes
-        </Button>
-        <Button 
-          type="button"
-          variant="outline"
-          className="flex-1 border border-gray-300"
-          onClick={onCancel}
-          disabled={loading}
-        >
-          <X className="h-4 w-4 mr-2" /> Cancel
-        </Button>
-      </div>
-    </form>
-  );
-};
-
-const StatCard = ({ title, value, subtitle }: { title: string; value: string; subtitle: string }) => {
-  return (
-    <div className="bg-gray-50 p-4 rounded-lg">
-      <div className="text-xl font-bold">{value}</div>
-      <div className="text-gray-600 font-medium">{title}</div>
-      <div className="text-xs text-gray-500">{subtitle}</div>
-    </div>
-  );
-};
-
-const SubjectProgress = ({ subject, progress }: { subject: string; progress: number }) => {
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-sm">{subject}</span>
-        <span className="text-sm font-medium">{Math.round(progress * 100)}%</span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div 
-          className="bg-primary h-2 rounded-full" 
-          style={{ width: `${progress * 100}%` }}
-        ></div>
-      </div>
-    </div>
-  );
-};
-
-const SessionItem = ({ title, date, type }: { title: string; date: string; type: string }) => {
-  const { toast } = useToast();
-  
-  const getTypeColor = () => {
-    switch (type) {
-      case 'Math': return 'text-green-500';
-      case 'Summary': return 'text-blue-500';
-      case 'Flashcard': return 'text-accent';
-      case 'Quiz': return 'text-orange-500';
-      default: return 'text-gray-500';
-    }
-  };
-  
-  return (
-    <div 
-      className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-      onClick={() => toast({ title: `Viewing ${title}` })}
-    >
-      <div>
-        <div className="font-medium">{title}</div>
-        <div className="text-sm text-gray-500">{date}</div>
-      </div>
-      <div className={`font-medium ${getTypeColor()}`}>
-        {type}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
-
 import { API_BASE_URL, getAuthHeaders, getBasicHeaders } from './apiConfig';
 import { secureTokenStorage } from './secureTokenStorage';
 import { rateLimiter } from '@/lib/security';
+import { ErrorRecoveryService } from './errorRecovery';
 
 // Types for API requests and responses
 export interface SignupRequest {
@@ -46,7 +46,7 @@ export const authApi = {
       throw new Error('Too many signup attempts. Please try again later.');
     }
 
-    try {
+    return ErrorRecoveryService.withRetry(async () => {
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: getBasicHeaders(),
@@ -60,13 +60,10 @@ export const authApi = {
       }
       
       return response.json();
-    } catch (error) {
-      console.error('Signup error:', error);
-      if (error instanceof TypeError && error.message.includes('NetworkError')) {
-        throw new Error('Network connection issue. Please check your internet connection and try again.');
-      }
-      throw error;
-    }
+    }, 'auth-signup', {
+      maxRetries: 2,
+      fallbackMessage: 'Registration failed. Please try again.'
+    });
   },
   
   // Login a user
@@ -76,7 +73,7 @@ export const authApi = {
       throw new Error('Too many login attempts. Please try again later.');
     }
 
-    try {
+    return ErrorRecoveryService.withRetry(async () => {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: getBasicHeaders(),
@@ -98,13 +95,10 @@ export const authApi = {
       rateLimiter.reset(`login_${credentials.email}`);
       
       return result;
-    } catch (error) {
-      console.error('Login error:', error);
-      if (error instanceof TypeError && error.message.includes('NetworkError')) {
-        throw new Error('Network connection issue. Please check your internet connection and try again.');
-      }
-      throw error;
-    }
+    }, 'auth-login', {
+      maxRetries: 2,
+      fallbackMessage: 'Login failed. Please check your credentials and try again.'
+    });
   },
 
   // Logout a user
@@ -133,7 +127,7 @@ export const authApi = {
 
   // Get user profile
   getProfile: async (): Promise<UserProfile> => {
-    try {
+    return ErrorRecoveryService.withRetry(async () => {
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: 'GET',
         headers: getAuthHeaders(),
@@ -146,15 +140,15 @@ export const authApi = {
       }
 
       return response.json();
-    } catch (error) {
-      console.error('Profile fetch error:', error);
-      throw error;
-    }
+    }, 'auth-profile', {
+      maxRetries: 3,
+      fallbackMessage: 'Unable to load profile. Please try again.'
+    });
   },
 
   // Update user profile
   updateProfile: async (profileData: ProfileUpdateRequest): Promise<UserProfile> => {
-    try {
+    return ErrorRecoveryService.withRetry(async () => {
       const response = await fetch(`${API_BASE_URL}/auth/update`, {
         method: 'PUT',
         headers: getAuthHeaders(),
@@ -168,10 +162,10 @@ export const authApi = {
       }
 
       return await response.json();
-    } catch (error) {
-      console.error('Profile update error:', error);
-      throw error;
-    }
+    }, 'auth-update-profile', {
+      maxRetries: 2,
+      fallbackMessage: 'Profile update failed. Please try again.'
+    });
   },
 
   // Delete user account

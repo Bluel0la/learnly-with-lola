@@ -67,14 +67,14 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="w-full bg-white px-2 md:px-4 py-2 md:py-3">
+    <nav className="w-full px-2 md:px-4 py-2 md:py-3">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo - Hidden on desktop since it's in sidebar */}
         <Link to="/" className="flex items-center space-x-2 md:hidden">
           <img 
             src="/lovable-uploads/049297b5-b176-4687-b854-f87a9f0100ff.png" 
             alt="Learnly Logo" 
-            className="h-6 w-auto"
+            className="h-6 w-auto rounded-md"
           />
           <span className="text-lg font-serif font-bold text-primary">Learnly</span>
         </Link>

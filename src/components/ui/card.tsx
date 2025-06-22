@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -8,8 +9,12 @@ const Card = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
+    tabIndex={0}
+    role="region"
+    aria-label={props["aria-label"] ?? "Card"}
     className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
+      // More consistent padding, border, rounded edge, and entry transition
+      "rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-shadow duration-200 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 animate-fade-in",
       className
     )}
     {...props}
@@ -23,7 +28,10 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    className={cn(
+      "flex flex-col space-y-1.5 p-6 pb-2 md:pb-2", // Tighter bottom spacing so content follows smoothly
+      className
+    )}
     {...props}
   />
 ))
@@ -36,7 +44,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "text-xl md:text-2xl font-serif font-bold leading-tight tracking-tight text-foreground",
       className
     )}
     {...props}
@@ -50,7 +58,10 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn(
+      "text-base text-muted-foreground mb-2",
+      className
+    )}
     {...props}
   />
 ))
